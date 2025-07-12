@@ -4,7 +4,7 @@ navbar_name: "Ningze Zhong"
 
 positions:
  #logo: /assets/images/badges/MIT_Social_circle.png  # Logo is optional
-- name: I was born in Guangdong-Hong Kong-Macau Greater Bay Area in China. I am a Cantonese and I can speek Cantonese, Mandarin, English and Hakka. I love playing tennis, swimming and so on in my free time. 
+- name: I was born in Guangdong-Hong Kong-Macau Greater Bay Area in China. I am a Cantonese and I can speek Cantonese, Mandarin, English and Hakka.
 - name: There have been many successful cantonese entrepreneurs world-wide (including Tencent, BYD, DeepSeek, Cheung-Kong Group，Charoen Pokphand and so on), and I think a common trait among Cantonese entrepreneurs is their commitment to win-win cooperation with all their partners. And that's my main philosophy.
 
 email: "lemonzhong001@163.com"
@@ -20,7 +20,7 @@ email: "lemonzhong001@163.com"
 
 short_bio_text_justify: True
   <p>
-     My philosophy is [Curiosity-led research and value-led start-ups]： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.  
+     My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.  
   </p>
   #<p>
   #  A <a href="https://en.wikipedia.org/wiki/Bicolor_cat" target="_blank">bicolor cat</a> is a cat with white fur combined with fur of some other colour, for example solid black, tabby, or colourpointed.
