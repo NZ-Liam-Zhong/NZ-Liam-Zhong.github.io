@@ -1,17 +1,17 @@
 ---
 show: true
-width: 4
-date: 2021-09-12 00:01:00 +0800
-height: 295px
-images:
-- src: assets/images/baby.jpg
-  title: Photo 1
-  desc: Me in a village when I was 2-year-old.
-- src: assets/images/australia.jpg
-  title: Photo 2
-  desc: I was visiting my cousin in Australia.
-- src: assets/images/hk2.jpg
-  title: Photo 3
-  desc: I was traveling.
+width: 1
+date: 2017-01-11 00:01:00 +0800
+class: ""  # Override the default card style
+---
+<div>
+<img src="{{ 'assets/images/baby.jpg' | relative_url }}" class="img-fluid rounded-xl" >
+</div>
 
-{% include widgets/carousel.html id=page.id images=page.images height=page.height %}
+<div>
+<img src="{{ 'assets/images/hk2.jpg' | relative_url }}" class="img-fluid rounded-xl" >
+</div>
+
+<div>
+<img src="{{ 'assets/images/australia.jpg' | relative_url }}" class="img-fluid rounded-xl" >
+</div>
