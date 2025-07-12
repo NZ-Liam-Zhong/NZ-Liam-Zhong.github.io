@@ -7,11 +7,3 @@ class: ""  # Override the default card style
 <div>
 <img src="{{ 'assets/images/baby.jpg' | relative_url }}" class="img-fluid rounded-xl" >
 </div>
-
-<div>
-<img src="{{ 'assets/images/hk2.jpg' | relative_url }}" class="img-fluid rounded-xl" >
-</div>
-
-<div>
-<img src="{{ 'assets/images/australia.jpg' | relative_url }}" class="img-fluid rounded-xl" >
-</div>
