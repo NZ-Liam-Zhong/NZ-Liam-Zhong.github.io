@@ -7,9 +7,11 @@ images:
 - src: assets/images/baby.jpg
   title: Photo 1
   desc: Me in a village when I was 2-year-old.
-- src: australia.jpg
+- src: assets/images/australia.jpg
   title: Photo 2
   desc: I was visiting my cousin in Australia.
-
+- src: assets/images/hk2.jpg
+  title: Photo 3
+  desc: I was traveling.
 
 {% include widgets/carousel.html id=page.id images=page.images height=page.height %}
