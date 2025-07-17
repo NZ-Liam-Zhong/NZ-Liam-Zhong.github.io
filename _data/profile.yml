@@ -18,10 +18,10 @@ email: "lemonzhong001@163.com"
 # linkedin: your-linked-in-id
 # orcid: 0000-0000-0000-0000
 
-short_bio_text_justify: My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.
-  #<p>
-  #   My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.  
-  #</p>
+short_bio_text_justify: True
+  <p>
+     My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.  
+  </p>
   #<p>
   #  A <a href="https://en.wikipedia.org/wiki/Bicolor_cat" target="_blank">bicolor cat</a> is a cat with white fur combined with fur of some other colour, for example solid black, tabby, or colourpointed.
   #</p>
