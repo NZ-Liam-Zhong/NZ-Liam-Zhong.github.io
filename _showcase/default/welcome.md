@@ -5,9 +5,9 @@ date: 2024-01-12 00:01:00 +0800
 ---
 
 <div class="p-4">
-    <h2>Life Photos</h2>
+    <h2>Hi there~</h2>
     <hr />
     <p>
-        I will occasionaly update some life photos!
+        I will update my personal photos and my photos with my friends and the others.
     </p>
 </div>
