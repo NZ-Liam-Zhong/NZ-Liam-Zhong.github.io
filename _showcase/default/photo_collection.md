@@ -5,9 +5,8 @@ date: 2021-09-12 00:01:00 +0800
 height: 295px
 images:
 - src: assets/images/shanmin.jpg
-  title: The vice President of Sun Yat-sen University and Dean of the Faculty of Economics (Lingnan Colledge).
-  desc: Prof.Shanmin Li (The vice President of Sun Yat-sen University and Dean of the Faculty of Economics).
-
+  title: Prof.Shanmin Li
+  desc: The vice President of Sun Yat-sen University and Dean of the Faculty of Economics (Lingnan Colledge).
 ---
 
 {% include widgets/carousel.html id=page.id images=page.images height=page.height %}
