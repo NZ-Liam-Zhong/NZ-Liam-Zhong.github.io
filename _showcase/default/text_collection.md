@@ -1,6 +1,6 @@
 ---
 show: true
-width: 5
+width: 8
 date: 2021-09-11 00:01:00 +0800
 height: 250px
 images:
