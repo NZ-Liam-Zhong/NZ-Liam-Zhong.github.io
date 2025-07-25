@@ -10,7 +10,4 @@ date: 2024-01-12 00:01:00 +0800
     <p>
         I will update my personal photos and my photos with my friends and the others.
     </p>
-    <p>
-        Photo with Prof. Shanmin Li was taken after an afternoon conversation. He taught me that 'character is revealed in small matters; principles are revealed in large ones.' He also emphasized the importance of etiquette and considering others' feelings to become a successful entrepreneur.
-    </p>
 </div>
