@@ -43,6 +43,11 @@ education:
   date: Sep. 2021 - Jul. 2025
 
 experience:
+- name: Venture Lab by Wharton
+  logo: /assets/images/VLab.jpg
+  position: Member
+  date: 2025-2027
+  
 - name: Shenzhen Innox Academy
   logo: /assets/images/badges/innox.jpg
   position: VC Winter Camp Member (Headed by DJI Founder, Prof.Zexiang Li)
