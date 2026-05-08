@@ -33,7 +33,7 @@ portrait_caption: >-
 education:
 - name: GRASP Lab, University of Pennsylvania 
   logo: /assets/images/badges/upen.png
-  position: M.SE in Robotics (Supervised by Prof. Vijay Kumar & Jianbo Shi)
+  position: M.SE in Robotics (Supervised by Prof. Vijay Kumar)
   date: Sep. 2025 - Jul. 2027
   
 - name: Sun Yat-sen University
@@ -42,10 +42,6 @@ education:
   date: Sep. 2021 - Jul. 2025
 
 experience:
-- name: Venture Lab by Upenn Wharton
-  logo: /assets/images/VLab.png
-  position: Venture Lab Member of the Most Prestigious Business School
-  date: 2025-2027
   
 - name: Shenzhen Innox Academy
   logo: /assets/images/badges/innox.jpg
@@ -55,9 +51,7 @@ experience:
 
 
 awards:
-- name: Academic Paper Track, National Undergraduate Innovation Annul Meeting
-  date: 2024
 - name: Samsung Scholarship
   date: 2023
 - name: Academic Excellence Scholarship
-  date: 2023
+  date: 2023, 2024
