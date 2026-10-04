@@ -1,0 +1,383 @@
+{
+ "stats": {
+  "scenes": 2,
+  "proposed": 12,
+  "passed_proposal_checks": 12,
+  "valid": 9,
+  "from_video": 3,
+  "expert_success": 0.7777777777777778,
+  "expert_runs": 9,
+  "model_state_success": 0.6666666666666666,
+  "model_state_stage": 3.4444444444444446,
+  "model_state_runs": 9,
+  "model_vision_success": 0.25,
+  "model_vision_stage": 3.0,
+  "model_vision_runs": 8
+ },
+ "funnel": {
+  "ThrowAwayTrash_e2s": {
+   "source": "proposed",
+   "proposed": 6,
+   "passed_proposal_checks": 6,
+   "valid": 6
+  },
+  "sample_ego_1_e2s": {
+   "source": "video",
+   "proposed": 6,
+   "passed_proposal_checks": 6,
+   "valid": 3
+  }
+ },
+ "tasks": [
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "bring_cup_forward",
+   "instruction": "Bring the blue cup to the near side of the table and leave it upright.",
+   "goal": "on_top(blue_cup, support) ∧ in_region(blue_cup, near) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "easy",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": false,
+    "stage": 3.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": false,
+      "stage": 3.0,
+      "calls": 2,
+      "minutes": 0.6
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 3.0,
+      "calls": 2,
+      "minutes": 0.5
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/bring_cup_forward"
+  },
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "cup_near_left",
+   "instruction": "Set the blue cup upright in the near-left area of the table.",
+   "goal": "on_top(blue_cup, support) ∧ in_region(blue_cup, near_left) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "easy",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.4
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 3.0,
+      "calls": 4,
+      "minutes": 0.8
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/cup_near_left"
+  },
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "cup_near_right",
+   "instruction": "Move the blue cup to the near-right area of the table, keeping it upright.",
+   "goal": "on_top(blue_cup, support) ∧ in_region(blue_cup, near_right) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "medium",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.5
+     }
+    ],
+    "vision": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 3,
+      "minutes": 0.7
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/cup_near_right"
+  },
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "cup_far_left",
+   "instruction": "Place the blue cup upright in the far-left area, using a spot within your reach rather than the back corner.",
+   "goal": "on_top(blue_cup, support) ∧ in_region(blue_cup, far_left) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "medium",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.4
+     }
+    ],
+    "vision": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 4,
+      "minutes": 0.7
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/cup_far_left"
+  },
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "cup_beside_bin",
+   "instruction": "Set the blue cup upright on the table just to the left of the bin, leaving no more than 3 cm between them.",
+   "goal": "on_top(blue_cup, support) ∧ in_region(blue_cup, right) ∧ near(blue_cup, dark_gray_pedal_bin, 3) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "hard",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": false,
+      "stage": 2.0,
+      "calls": 2,
+      "minutes": 0.4
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 2.0,
+      "calls": 2,
+      "minutes": 0.6
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/cup_beside_bin"
+  },
+  {
+   "scene": "ThrowAwayTrash_e2s",
+   "video": "ThrowAwayTrash",
+   "id": "cup_on_bin_lid",
+   "instruction": "Carefully stand the blue cup upright on top of the bin's closed lid.",
+   "goal": "on_top(blue_cup, dark_gray_pedal_bin) ∧ upright(blue_cup)",
+   "source": "proposed",
+   "difficulty": "hard",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.4
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 3.0,
+      "calls": 14,
+      "minutes": 3.3
+     }
+    ]
+   },
+   "dir": "Data/ThrowAwayTrash_e2s/task/cup_on_bin_lid"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "bring_can_closer",
+   "instruction": "Bring the blue beverage can closer and set it upright beside the placemat.",
+   "goal": "near(blue_beverage_can, dark_placemat, 2) ∧ upright(blue_beverage_can)",
+   "source": "video",
+   "difficulty": "easy",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": false,
+      "stage": 2.0,
+      "calls": 3,
+      "minutes": 1.2
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 3.0,
+      "calls": 20,
+      "minutes": 7.2
+     }
+    ]
+   },
+   "dir": "Data/sample_ego_1_e2s/task/bring_can_closer"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "glass_beside_can",
+   "instruction": "Move the glass next to the beverage can, leaving no more than two centimeters between them.",
+   "goal": "near(clear_stemmed_glass, blue_beverage_can, 2) ∧ upright(clear_stemmed_glass)",
+   "source": "video",
+   "difficulty": "easy",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": true,
+    "stage": 4.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.6
+     }
+    ],
+    "vision": [
+     {
+      "success": false,
+      "stage": 2.0,
+      "calls": 11,
+      "minutes": 3.4
+     }
+    ]
+   },
+   "dir": "Data/sample_ego_1_e2s/task/glass_beside_can"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "glass_on_placemat",
+   "instruction": "Bring the glass onto the placemat and set it upright clear of the cutlery.",
+   "goal": "on_top(clear_stemmed_glass, dark_placemat) ∧ upright(clear_stemmed_glass)",
+   "source": "video",
+   "difficulty": "medium",
+   "valid": true,
+   "invalid": null,
+   "expert": {
+    "success": false,
+    "stage": 3.0
+   },
+   "model": {
+    "state": [
+     {
+      "success": true,
+      "stage": 4.0,
+      "calls": 2,
+      "minutes": 0.6
+     }
+    ],
+    "vision": []
+   },
+   "dir": "Data/sample_ego_1_e2s/task/glass_on_placemat"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "put_candle_in_holder",
+   "instruction": "Put the tealight upright inside the red candle holder.",
+   "goal": "inside(tealight_candle, red_candle_holder) ∧ upright(tealight_candle)",
+   "source": "video",
+   "difficulty": "medium",
+   "valid": false,
+   "invalid": "not simulated",
+   "expert": null,
+   "model": {
+    "state": [],
+    "vision": []
+   },
+   "dir": "Data/sample_ego_1_e2s/task/put_candle_in_holder"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "pair_drinks_on_placemat",
+   "instruction": "Set the can and glass upright together on the placemat, no more than three centimeters apart.",
+   "goal": "on_top(blue_beverage_can, dark_placemat) ∧ on_top(clear_stemmed_glass, dark_placemat) ∧ near(clear_stemmed_glass, blue_beverage_can, 3) ∧ upright(blue_beverage_can) ∧ upright(clear_stemmed_glass)",
+   "source": "video",
+   "difficulty": "hard",
+   "valid": false,
+   "invalid": "not simulated",
+   "expert": null,
+   "model": {
+    "state": [],
+    "vision": []
+   },
+   "dir": "Data/sample_ego_1_e2s/task/pair_drinks_on_placemat"
+  },
+  {
+   "scene": "sample_ego_1_e2s",
+   "video": "sample_ego_1",
+   "id": "prepare_drink_setting",
+   "instruction": "Put the tealight in its holder, set the can upright on the placemat, and place the glass upright on the table beside both the can and placemat.",
+   "goal": "inside(tealight_candle, red_candle_holder) ∧ upright(tealight_candle) ∧ on_top(blue_beverage_can, dark_placemat) ∧ upright(blue_beverage_can) ∧ on_top(clear_stemmed_glass, support) ∧ near(clear_stemmed_glass, dark_placemat, 2) ∧ near(clear_stemmed_glass, blue_beverage_can, 3) ∧ upright(clear_stemmed_glass)",
+   "source": "video",
+   "difficulty": "hard",
+   "valid": false,
+   "invalid": "not simulated",
+   "expert": null,
+   "model": {
+    "state": [],
+    "vision": []
+   },
+   "dir": "Data/sample_ego_1_e2s/task/prepare_drink_setting"
+  }
+ ]
+}
