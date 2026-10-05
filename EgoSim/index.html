@@ -58,23 +58,21 @@
   </div>
 </header>
 
-<section class="stats">
-  <div class="stat"><b>1</b><span>command from video to evaluation, no per-video settings</span></div>
-  <div class="stat"><b>5</b><span>goal predicates, checked on simulator state</span></div>
-  <div class="stat"><b>3</b><span>physical checks per task before evaluation</span></div>
-  <div class="stat"><b>8 vs 5</b><span>blind judge, with vs without the authored room (ThrowAwayTrash)</span></div>
-  <div class="stat"><b>23</b><span>valid benchmark tasks from 6 videos; GPT-6 Astra solves 39% with state, 13% from images</span></div>
+<section class="stats four">
+  <div class="stat"><b>6</b><span>videos</span></div>
+  <div class="stat"><b>23</b><span>valid tasks</span></div>
+  <div class="stat"><b>39%</b><span>GPT-6 Astra, state + images</span></div>
+  <div class="stat"><b>13%</b><span>GPT-6 Astra, images only</span></div>
 </section>
 
 <main>
 
 <section id="overview">
   <h2>Overview</h2>
-  <p class="lead">Foundation models such as GPT-6 Astra can now output robot commands directly. Fine-tuned policies are
-    evaluated on a handful of precise tasks; models like these need <em>many</em> real tasks. EgoSim builds them from
-    videos: every video becomes a simulated scene, tasks grounded in what happens in it, and a validated evaluation.
-    A vision-language model (VLM) decides <em>what</em> things are; geometry, scale and poses come from depth, masks
-    and multi-view voting, so the pipeline runs without per-video tuning.</p>
+  <p class="lead">EgoSim turns a video of someone working at a table into a simulated scene, a set of manipulation
+    tasks taken from the video, and an evaluation of a model that controls a robot arm in that scene. A
+    vision-language model (VLM) names the objects; their geometry, scale and poses come from depth, masks and
+    voting over many frames. The same command runs on every video.</p>
 
   <div class="flow">
     <div class="lane">
@@ -247,12 +245,6 @@
     <div class="gate"><span>2</span><b>Goal is reachable and stable</b><p>A free, reachable goal pose that still holds when shifted 2 cm (a <code>near</code> band of a few cm excepted); objects teleported there and settled by physics must satisfy the goal. "Free" is read from a top-down ray-cast map of the scene, what a top-down gripper faces: a cable blocks only the cells it covers.</p></div>
     <div class="gate"><span>3</span><b>An expert run</b><p>A privileged scripted top-down pick-and-place runs on the task and is reported next to the model. Checks 1–2 decide validity; the expert is not yet a hard gate because its IK cannot reach close to the robot's base.</p></div>
   </div>
-  <p class="note">13 of 36 proposed tasks were rejected, each with a reason: "put the screw on the orange box" (the box
-    sits inside the aluminium frame, out of a top-down gripper's reach), "move the spirit level to the near right"
-    (the long level does not fit on the support there), "the wire stripper right of the tape" (no pose keeps the goal
-    when shifted 2 cm),
-    a drink setting that tips over when settled. A visual judge cannot see any of this.</p>
-
   <h3 id="eval">Closed-loop evaluation</h3>
   <div class="grid2">
     <div>
@@ -326,20 +318,17 @@
     <div class="pane"><b>Simulator settings</b><p>OmniGibson's cloth grasp flag silently disabled rigid grasps; a 25° gripper tilt came with the robot's reset pose.</p></div>
     <div class="pane"><b>False successes</b><p>A reset that did not restore teleported objects made an early expert run look successful and a stable lid goal look unstable. Rollouts now refuse to start if the goal already holds.</p></div>
   </div>
-  <p class="note">Single trials on one easy task show that the loop works end to end; the success rates are in the
-    benchmark below.</p>
 </section>
 
 <section id="benchmark">
   <h2>Benchmark</h2>
-  <p class="lead">Every scene adds its valid tasks. The scenes come from a robot recording, a head-mounted phone
-    video and four Aria glasses recordings of industrial work (<a href="https://huggingface.co/datasets/FraunhoferIPK/IndEgo">IndEgo</a>;
-    fisheye frames rectified to a pinhole camera first). Each task is run once by the scripted expert and once by
-    the model in each observation mode; a cell shows success and the stage reached (0–4).</p>
+  <p class="lead">Six videos: a robot recording, a head-mounted phone video and four Aria glasses recordings from
+    <a href="https://huggingface.co/datasets/FraunhoferIPK/IndEgo">IndEgo</a>. Each task is run once by the scripted
+    expert and once by the model in each mode; a cell shows success and the stage reached (0–4).</p>
 <!-- BENCH:BEGIN -->
 <div class="stats bench-stats">
   <div class="stat"><b>23</b><span>valid tasks<br><small>from 36 proposed in 6 scenes</small></span></div>
-  <div class="stat"><b>17</b><span>from the video<br><small>what the person did; the rest proposed for the scene</small></span></div>
+  <div class="stat"><b>17</b><span>from the video<br><small>the rest proposed for the scene</small></span></div>
   <div class="stat"><b>39%</b><span>scripted expert<br><small>23 runs, privileged state</small></span></div>
   <div class="stat"><b>39%</b><span>GPT-6 Astra · state<br><small>23 rollouts</small></span></div>
   <div class="stat"><b>13%</b><span>GPT-6 Astra · vision<br><small>23 rollouts</small></span></div>
@@ -370,7 +359,6 @@
 <tr><td>22</td><td class="th"><img src="assets/img/bench/indego_clamp2__organize_phone_and_level.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Put the spirit level in the center of the table and set the smartphone beside it, within 3 cm.<br><code>in_region(spirit_level, center) ∧ near(smartphone, spirit_level, 3)</code></td><td>video<br><small>medium</small></td><td>✗ 1.5</td><td>✗ 1.5</td><td>✗ 1.5</td></tr>
 <tr><td>23</td><td class="th"><img src="assets/img/bench/indego_clamp2__prepare_block_work_area.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Place the spirit level in the center of the table within 5 cm of the wooden block, then set the smartphone on top of the block.<br><code>in_region(spirit_level, center) ∧ near(spirit_level, wooden_block, 5) ∧ on_top(smartphone, wooden_block)</code></td><td>video<br><small>hard</small></td><td>✗ 1.5</td><td>✗ 1.5</td><td>✗ 1.5</td></tr>
 </tbody></table></div>
-<p class="note">Rejected by the physical checks: sample_ego_1 · Put the tealight in its holder, set the can upright on the placemat, and place the glass upright on the table beside both the can and placemat. (goal not stable); indego_screw · Place the loose screw on top of the orange cardboard box so it is easy to find. (no feasible goal pose: loose_socket_head_screw: overlaps aluminum_frame_assembly); indego_screw · Bring the silver wrench over and set it on the table within 2 cm of the loose screw. (no feasible goal pose: silver_wrench: overlaps aluminum_frame_assembly); indego_screw · Put the loose screw on the orange box, set the silver wrench on the table within 2 cm of the Allen key, and put the yellow-fob keys on the wooden block. (no feasible goal pose: loose_socket_head_screw: overlaps aluminum_frame_assembly); indego_tape · Move the wire stripper into the right-hand part of the table, close to the packing tape. (no feasible goal pose: black_teal_wire_stripper: goal not met with a 2 cm margin); indego_tape · Set the paintbrush in the near-right area beside the dark smartphone, without covering it. (no feasible goal pose: wide_paintbrush: off the support); indego_tape · Arrange the wire stripper beside the lit phone and the paintbrush beside the dark phone, both in the near-right area with both screens clear. (no feasible goal pose: black_teal_wire_stripper: goal not met with a 2 cm margin); indego_tape · Group the wire stripper and paintbrush on the right side near the packing tape, keeping the two tools close together on the table. (no feasible goal pose: wide_paintbrush: goal not met with a 2 cm margin); indego_clamp · Place the red screwdriver on the near-left part of the table, within 5 cm of the lit-screen phone without covering its screen. (no feasible goal pose: red_screwdriver: goal not met with a 2 cm margin); indego_clamp · Move the long orange tool case to the near-left part of the table and rest the blue long-nose pliers flat on top of it. (no feasible goal pose: long_orange_tool_case: off the support); indego_clamp · Prepare the near workspace: move the long orange case to the near-left area and put the blue pliers on it, place the red screwdriver and silver wrench beside the lit-screen phone, and place the long black clamping tool beside the black-handled scissors, keeping each beside placement within 5 cm. (no feasible goal pose: long_orange_tool_case: off the support); indego_clamp2 · Move the spirit level to the near-right part of the table, keeping it fully supported and clear of the vise. (no feasible goal pose: spirit_level: off the support); indego_clamp2 · Move the spirit level to the near-right part of the table, then place the smartphone flat on its upper surface. (no feasible goal pose: spirit_level: off the support)</p>
 <!-- BENCH:END -->
   <p>Every task with its goal predicates, check results and runs: <a href="benchmark.json">benchmark.json</a>.</p>
   <div class="codebox">
@@ -479,18 +467,6 @@ bash egosim/benchmark.sh /abs/path/a.mp4 /abs/path/b.mp4 ...    # the table abov
   </table>
   </div>
 
-  <h3>SimFoundry vs EgoSim, as observed in these runs</h3>
-  <div class="table-wrap">
-  <table class="props">
-    <thead><tr><th></th><th>SimFoundry</th><th>EgoSim</th></tr></thead>
-    <tbody>
-      <tr><td>Surroundings</td><td>Gaussian splat: looks right near the recorded cameras, no collision geometry</td><td>Authored walls, support and floor, all with colliders</td></tr>
-      <tr><td>Away from the recorded views</td><td>Floaters and smearing (ego_1)</td><td>Geometry and materials hold</td></tr>
-      <tr><td>Fast, close egocentric footage</td><td>Splat degrades even at the recorded views (ego_1)</td><td>Clean support and objects</td></tr>
-      <tr><td>Output</td><td>A simulation scene</td><td>A scene, tasks with checked goals, and a closed-loop evaluation</td></tr>
-    </tbody>
-  </table>
-  </div>
 </section>
 
 <section id="reproduce">
@@ -514,12 +490,12 @@ bash egosim/egosim.sh /abs/path/video.mp4    # scene, tasks, evaluation; the abl
 </section>
 
 <section id="next">
-  <h2>Toward a benchmark of real tasks</h2>
-  <div class="grid3">
-    <div class="pane"><b>Scale</b><p>~1000 videos → ~1000 validated tasks, with per-stage failure statistics as a result in itself.</p></div>
-    <div class="pane"><b>Embodiments</b><p>Franka today; YAM, R1 and Tiago are in OmniGibson; export to Isaac Lab-Arena and RoboVerse.</p></div>
-    <div class="pane"><b>Physics in the loop</b><p>Check failures fed back into reconstruction (colliders, overlaps, scale) and task proposal.</p></div>
-  </div>
+  <h2>Next steps</h2>
+  <ul>
+    <li>More videos and several trials per task.</li>
+    <li>Other robots (YAM, R1, Tiago are available in OmniGibson).</li>
+    <li>Use failed checks to correct the reconstruction and the task proposals.</li>
+  </ul>
 </section>
 
 <section id="ack">
