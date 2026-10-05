@@ -33,7 +33,7 @@
     <p class="kicker">Real-to-sim benchmark construction</p>
     <h1>EgoSim</h1>
     <p class="subtitle">From egocentric videos to simulation-ready manipulation tasks<br>for evaluating foundation-model robot policies</p>
-    <p class="authors"><a href="https://nz-liam-zhong.github.io/">Liam N. Zhong</a></p>
+    <p class="authors"><a href="https://nz-liam-zhong.github.io/">Ningze Zhong</a> · GRASP Lab, University of Pennsylvania</p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/NZ-Liam-Zhong/EgoSim">Code</a>
       <a class="btn" href="#comparison">Comparison</a>
@@ -63,7 +63,7 @@
   <div class="stat"><b>5</b><span>goal predicates, checked on simulator state</span></div>
   <div class="stat"><b>3</b><span>physical checks per task before evaluation</span></div>
   <div class="stat"><b>8 vs 5</b><span>blind judge, with vs without the authored room (ThrowAwayTrash)</span></div>
-  <div class="stat"><b>2 / 2</b><span>GPT-6 Astra rollouts solved (state, vision)</span></div>
+  <div class="stat"><b>23</b><span>valid benchmark tasks from 6 videos; GPT-6 Astra solves 39% with state, 13% from images</span></div>
 </section>
 
 <main>
@@ -221,13 +221,21 @@
 
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Video</th><th>Camera</th><th>Mined</th><th>Source</th><th>Tasks</th></tr></thead>
+    <thead><tr><th>Video</th><th>Camera</th><th>Source</th><th>Valid / proposed</th><th>Example task</th></tr></thead>
     <tbody>
-      <tr><td>ThrowAwayTrash</td><td>robot</td><td>no manipulation</td><td>proposed</td>
-        <td>bring the cup forward · cup beside the bin · cup on the bin's lid</td></tr>
-      <tr><td>ego_1</td><td>human egocentric</td><td>7 events, 5 simulable (open can, pour: not)</td><td>video</td>
-        <td>can beside the placemat · glass beside the can · stage can and glass for pouring</td></tr>
-      <tr><td>ego_2</td><td>human egocentric</td><td>buttoning a shirt, not simulable</td><td>none</td>
+      <tr><td>ThrowAwayTrash</td><td>robot</td><td>proposed (no manipulation by a person)</td><td>6 / 6</td>
+        <td>Bring the blue cup to the near side of the table and leave it upright.</td></tr>
+      <tr><td>ego_1</td><td>head-mounted phone</td><td>video (open can, pour: not simulable)</td><td>5 / 6</td>
+        <td>Bring the blue beverage can closer and set it upright beside the placemat.</td></tr>
+      <tr><td>IndEgo screw</td><td>Aria glasses</td><td>video (tightening: not simulable)</td><td>3 / 6</td>
+        <td>Put the loose screw on the table within 2 cm of the Allen key, ready for assembly.</td></tr>
+      <tr><td>IndEgo tape</td><td>Aria glasses</td><td>video</td><td>2 / 6</td>
+        <td>Set the wire stripper on the table beside the lit smartphone, leaving the screen clear.</td></tr>
+      <tr><td>IndEgo clamp</td><td>Aria glasses</td><td>video</td><td>3 / 6</td>
+        <td>Move the long black clamping tool to the near-right part of the table.</td></tr>
+      <tr><td>IndEgo clamp 2</td><td>Aria glasses</td><td>video</td><td>4 / 6</td>
+        <td>Put the smartphone on the near-right part of the table where I can reach it.</td></tr>
+      <tr><td>ego_2</td><td>head-mounted phone</td><td>none (buttoning a shirt)</td><td>–</td>
         <td>only cloth in the scene: cloth tasks are future work</td></tr>
     </tbody>
   </table>
@@ -236,13 +244,14 @@
   <h3>Physical checks</h3>
   <div class="gates">
     <div class="gate"><span>1</span><b>Goal is false now</b><p>The initial state must not already satisfy the goal.</p></div>
-    <div class="gate"><span>2</span><b>Goal is reachable and stable</b><p>A free, reachable goal pose that still holds when shifted 2 cm (a <code>near</code> band of a few cm excepted); objects teleported there and settled by physics must satisfy the goal.</p></div>
+    <div class="gate"><span>2</span><b>Goal is reachable and stable</b><p>A free, reachable goal pose that still holds when shifted 2 cm (a <code>near</code> band of a few cm excepted); objects teleported there and settled by physics must satisfy the goal. "Free" is read from a top-down ray-cast map of the scene, what a top-down gripper faces: a cable blocks only the cells it covers.</p></div>
     <div class="gate"><span>3</span><b>An expert run</b><p>A privileged scripted top-down pick-and-place runs on the task and is reported next to the model. Checks 1–2 decide validity; the expert is not yet a hard gate because its IK cannot reach close to the robot's base.</p></div>
   </div>
-  <p class="note">On ThrowAwayTrash: "within 14 cm of the bin" was rejected at check 2 (only a 12–14 cm ring around a
-    17 cm bin is left); "the cup on the bin's closed lid" passes all three, with the expert lifting the cup onto the
-    27 cm lid; "bring the cup forward" passes checks 1–2 while the expert stops 4.4 cm short. A visual judge cannot
-    see any of this.</p>
+  <p class="note">13 of 36 proposed tasks were rejected, each with a reason: "put the screw on the orange box" (the box
+    sits inside the aluminium frame, out of a top-down gripper's reach), "move the spirit level to the near right"
+    (the long level does not fit on the support there), "the wire stripper right of the tape" (no pose keeps the goal
+    when shifted 2 cm),
+    a drink setting that tips over when settled. A visual judge cannot see any of this.</p>
 
   <h3 id="eval">Closed-loop evaluation</h3>
   <div class="grid2">
@@ -311,9 +320,9 @@
 
   <h3>What the physical checks caught</h3>
   <div class="grid3">
-    <div class="pane"><b>Inconsistent definitions</b><p><code>near</code> was checked centre to centre while placement
-      kept footprints apart, so "the glass within 9 cm of the can" had no feasible pose and every such task was
-      rejected. Both now use the same footprint gap; the tasks were proposed again.</p></div>
+    <div class="pane"><b>Wrong geometry</b><p><code>near</code> was checked centre to centre while placement kept
+      footprints apart, and a curled cable's bounding box covered half a workbench: tasks with good goals had no
+      feasible pose. <code>near</code> is now an edge-to-edge gap and placement reads a top-down ray-cast map.</p></div>
     <div class="pane"><b>Simulator settings</b><p>OmniGibson's cloth grasp flag silently disabled rigid grasps; a 25° gripper tilt came with the robot's reset pose.</p></div>
     <div class="pane"><b>False successes</b><p>A reset that did not restore teleported objects made an early expert run look successful and a stable lid goal look unstable. Rollouts now refuse to start if the goal already holds.</p></div>
   </div>
@@ -323,30 +332,45 @@
 
 <section id="benchmark">
   <h2>Benchmark</h2>
-  <p class="lead">Every scene adds its valid tasks. The scenes come from a robot recording, two head-mounted phone
-    videos and three Aria glasses recordings of industrial work (<a href="https://huggingface.co/datasets/FraunhoferIPK/IndEgo">IndEgo</a>;
+  <p class="lead">Every scene adds its valid tasks. The scenes come from a robot recording, a head-mounted phone
+    video and four Aria glasses recordings of industrial work (<a href="https://huggingface.co/datasets/FraunhoferIPK/IndEgo">IndEgo</a>;
     fisheye frames rectified to a pinhole camera first). Each task is run once by the scripted expert and once by
     the model in each observation mode; a cell shows success and the stage reached (0–4).</p>
 <!-- BENCH:BEGIN -->
 <div class="stats bench-stats">
-  <div class="stat"><b>9</b><span>valid tasks<br><small>from 12 proposed in 2 scenes</small></span></div>
-  <div class="stat"><b>3</b><span>from the video<br><small>what the person did; the rest proposed for the scene</small></span></div>
-  <div class="stat"><b>78%</b><span>scripted expert<br><small>9 runs, privileged state</small></span></div>
-  <div class="stat"><b>67%</b><span>GPT-6 Astra · state<br><small>9 rollouts</small></span></div>
-  <div class="stat"><b>25%</b><span>GPT-6 Astra · vision<br><small>8 rollouts</small></span></div>
+  <div class="stat"><b>23</b><span>valid tasks<br><small>from 36 proposed in 6 scenes</small></span></div>
+  <div class="stat"><b>17</b><span>from the video<br><small>what the person did; the rest proposed for the scene</small></span></div>
+  <div class="stat"><b>39%</b><span>scripted expert<br><small>23 runs, privileged state</small></span></div>
+  <div class="stat"><b>39%</b><span>GPT-6 Astra · state<br><small>23 rollouts</small></span></div>
+  <div class="stat"><b>13%</b><span>GPT-6 Astra · vision<br><small>23 rollouts</small></span></div>
 </div>
 <div class="table-wrap"><table class="bench">
 <thead><tr><th>#</th><th></th><th>Video</th><th>Task</th><th>Source</th><th>Expert</th><th>State</th><th>Vision</th></tr></thead><tbody>
-<tr><td>1</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__bring_cup_forward.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Bring the blue cup to the near side of the table and leave it upright.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near) ∧ upright(blue_cup)</code></td><td>proposed<br><small>easy</small></td><td>✗ 3</td><td>✗ 3.0</td><td>✗ 3.0</td></tr>
-<tr><td>2</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_near_left.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Set the blue cup upright in the near-left area of the table.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near_left) ∧ upright(blue_cup)</code></td><td>proposed<br><small>easy</small></td><td>✓ 4</td><td>✓ 4.0</td><td>✗ 3.0</td></tr>
-<tr><td>3</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_near_right.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Move the blue cup to the near-right area of the table, keeping it upright.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near_right) ∧ upright(blue_cup)</code></td><td>proposed<br><small>medium</small></td><td>✓ 4</td><td>✓ 4.0</td><td>✓ 4.0</td></tr>
-<tr><td>4</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_far_left.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Place the blue cup upright in the far-left area, using a spot within your reach rather than the back corner.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, far_left) ∧ upright(blue_cup)</code></td><td>proposed<br><small>medium</small></td><td>✓ 4</td><td>✓ 4.0</td><td>✓ 4.0</td></tr>
-<tr><td>5</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_beside_bin.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Set the blue cup upright on the table just to the left of the bin, leaving no more than 3 cm between them.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, right) ∧ near(blue_cup, dark_gray_pedal_bin, 3) ∧ upright(blue_cup)</code></td><td>proposed<br><small>hard</small></td><td>✓ 4</td><td>✗ 2.0</td><td>✗ 2.0</td></tr>
-<tr><td>6</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_on_bin_lid.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Carefully stand the blue cup upright on top of the bin&#x27;s closed lid.<br><code>on_top(blue_cup, dark_gray_pedal_bin) ∧ upright(blue_cup)</code></td><td>proposed<br><small>hard</small></td><td>✓ 4</td><td>✓ 4.0</td><td>✗ 3.0</td></tr>
-<tr><td>7</td><td class="th"><img src="assets/img/bench/sample_ego_1__bring_can_closer.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Bring the blue beverage can closer and set it upright beside the placemat.<br><code>near(blue_beverage_can, dark_placemat, 2) ∧ upright(blue_beverage_can)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✗ 2.0</td><td>✗ 3.0</td></tr>
-<tr><td>8</td><td class="th"><img src="assets/img/bench/sample_ego_1__glass_beside_can.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Move the glass next to the beverage can, leaving no more than two centimeters between them.<br><code>near(clear_stemmed_glass, blue_beverage_can, 2) ∧ upright(clear_stemmed_glass)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✓ 4.0</td><td>✗ 2.0</td></tr>
-<tr><td>9</td><td class="th"><img src="assets/img/bench/sample_ego_1__glass_on_placemat.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Bring the glass onto the placemat and set it upright clear of the cutlery.<br><code>on_top(clear_stemmed_glass, dark_placemat) ∧ upright(clear_stemmed_glass)</code></td><td>video<br><small>medium</small></td><td>✗ 3</td><td>✓ 4.0</td><td>–</td></tr>
+<tr><td>1</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__bring_cup_forward.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Bring the blue cup to the near side of the table and leave it upright.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near) ∧ upright(blue_cup)</code></td><td>proposed<br><small>easy</small></td><td>✗ 3</td><td>✗ 3</td><td>✗ 3</td></tr>
+<tr><td>2</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_near_left.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Set the blue cup upright in the near-left area of the table.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near_left) ∧ upright(blue_cup)</code></td><td>proposed<br><small>easy</small></td><td>✓ 4</td><td>✓ 4</td><td>✗ 3</td></tr>
+<tr><td>3</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_near_right.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Move the blue cup to the near-right area of the table, keeping it upright.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, near_right) ∧ upright(blue_cup)</code></td><td>proposed<br><small>medium</small></td><td>✓ 4</td><td>✓ 4</td><td>✓ 4</td></tr>
+<tr><td>4</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_far_left.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Place the blue cup upright in the far-left area, using a spot within your reach rather than the back corner.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, far_left) ∧ upright(blue_cup)</code></td><td>proposed<br><small>medium</small></td><td>✓ 4</td><td>✓ 4</td><td>✓ 4</td></tr>
+<tr><td>5</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_beside_bin.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Set the blue cup upright on the table just to the left of the bin, leaving no more than 3 cm between them.<br><code>on_top(blue_cup, support) ∧ in_region(blue_cup, right) ∧ near(blue_cup, dark_gray_pedal_bin, 3) ∧ upright(blue_cup)</code></td><td>proposed<br><small>hard</small></td><td>✓ 4</td><td>✗ 2</td><td>✗ 2</td></tr>
+<tr><td>6</td><td class="th"><img src="assets/img/bench/ThrowAwayTrash__cup_on_bin_lid.jpg" alt="" loading="lazy" data-zoom></td><td>ThrowAwayTrash</td><td>Carefully stand the blue cup upright on top of the bin&#x27;s closed lid.<br><code>on_top(blue_cup, dark_gray_pedal_bin) ∧ upright(blue_cup)</code></td><td>proposed<br><small>hard</small></td><td>✓ 4</td><td>✓ 4</td><td>✗ 3</td></tr>
+<tr><td>7</td><td class="th"><img src="assets/img/bench/sample_ego_1__bring_can_closer.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Bring the blue beverage can closer and set it upright beside the placemat.<br><code>near(blue_beverage_can, dark_placemat, 2) ∧ upright(blue_beverage_can)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✗ 2</td><td>✗ 3</td></tr>
+<tr><td>8</td><td class="th"><img src="assets/img/bench/sample_ego_1__glass_beside_can.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Move the glass next to the beverage can, leaving no more than two centimeters between them.<br><code>near(clear_stemmed_glass, blue_beverage_can, 2) ∧ upright(clear_stemmed_glass)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✓ 4</td><td>✗ 2</td></tr>
+<tr><td>9</td><td class="th"><img src="assets/img/bench/sample_ego_1__glass_on_placemat.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Bring the glass onto the placemat and set it upright clear of the cutlery.<br><code>on_top(clear_stemmed_glass, dark_placemat) ∧ upright(clear_stemmed_glass)</code></td><td>video<br><small>medium</small></td><td>✗ 3</td><td>✓ 4</td><td>✗ 3</td></tr>
+<tr><td>10</td><td class="th"><img src="assets/img/bench/sample_ego_1__put_candle_in_holder.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Put the tealight upright inside the red candle holder.<br><code>inside(tealight_candle, red_candle_holder) ∧ upright(tealight_candle)</code></td><td>video<br><small>medium</small></td><td>✗ 3</td><td>✓ 4</td><td>✗ 3</td></tr>
+<tr><td>11</td><td class="th"><img src="assets/img/bench/sample_ego_1__pair_drinks_on_placemat.jpg" alt="" loading="lazy" data-zoom></td><td>sample_ego_1</td><td>Set the can and glass upright together on the placemat, no more than three centimeters apart.<br><code>on_top(blue_beverage_can, dark_placemat) ∧ on_top(clear_stemmed_glass, dark_placemat) ∧ near(clear_stemmed_glass, blue_beverage_can, 3) ∧ upright(blue_beverage_can) ∧ upright(clear_stemmed_glass)</code></td><td>video<br><small>hard</small></td><td>✗ 3</td><td>✗ 3</td><td>✗ 2.5</td></tr>
+<tr><td>12</td><td class="th"><img src="assets/img/bench/indego_screw__stage_screw_by_allen_key.jpg" alt="" loading="lazy" data-zoom></td><td>indego_screw</td><td>Put the loose screw on the table within 2 cm of the Allen key, ready for assembly.<br><code>near(loose_socket_head_screw, allen_key, 2)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✓ 4</td><td>✗ 1</td></tr>
+<tr><td>13</td><td class="th"><img src="assets/img/bench/indego_screw__clear_keys_onto_block.jpg" alt="" loading="lazy" data-zoom></td><td>indego_screw</td><td>Move the keys with the yellow fob onto the wooden block to clear the measuring-tool area.<br><code>on_top(keys_with_yellow_fob, wooden_block)</code></td><td>video<br><small>medium</small></td><td>✗ 3</td><td>✓ 4</td><td>✓ 4</td></tr>
+<tr><td>14</td><td class="th"><img src="assets/img/bench/indego_screw__stage_parts_beside_phone.jpg" alt="" loading="lazy" data-zoom></td><td>indego_screw</td><td>Set the loose screw and silver wrench on the table beside the smartphone, each within 2 cm of it, without covering the screen.<br><code>near(loose_socket_head_screw, smartphone, 2) ∧ near(silver_wrench, smartphone, 2)</code></td><td>video<br><small>hard</small></td><td>✗ 1.5</td><td>✗ 2.5</td><td>✗ 0</td></tr>
+<tr><td>15</td><td class="th"><img src="assets/img/bench/indego_tape__stage_stripper_by_phone.jpg" alt="" loading="lazy" data-zoom></td><td>indego_tape</td><td>Set the wire stripper on the table beside the lit smartphone, leaving the screen clear.<br><code>on_top(black_teal_wire_stripper, support) ∧ near(black_teal_wire_stripper, lit_smartphone, 3)</code></td><td>video<br><small>easy</small></td><td>✗ 1</td><td>✗ 3</td><td>✗ 2</td></tr>
+<tr><td>16</td><td class="th"><img src="assets/img/bench/indego_tape__stage_brush_by_tape.jpg" alt="" loading="lazy" data-zoom></td><td>indego_tape</td><td>Put the paintbrush on the table beside the packing tape.<br><code>on_top(wide_paintbrush, support) ∧ near(wide_paintbrush, brown_packing_tape, 5)</code></td><td>video<br><small>easy</small></td><td>✗ 1</td><td>✗ 0</td><td>✗ 0</td></tr>
+<tr><td>17</td><td class="th"><img src="assets/img/bench/indego_clamp__stage_clamping_tool.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp</td><td>Move the long black clamping tool to the near-right part of the table.<br><code>in_region(long_black_clamping_tool, near_right)</code></td><td>video<br><small>easy</small></td><td>✓ 4</td><td>✗ 3</td><td>✗ 3</td></tr>
+<tr><td>18</td><td class="th"><img src="assets/img/bench/indego_clamp__bring_wrench_to_case.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp</td><td>Bring the small silver wrench over beside the black oval case, leaving no more than 5 cm between them.<br><code>near(rear_silver_wrench, black_oval_case, 5)</code></td><td>video<br><small>easy</small></td><td>✗ 0</td><td>✗ 0</td><td>✗ 0</td></tr>
+<tr><td>19</td><td class="th"><img src="assets/img/bench/indego_clamp__group_adjustment_tools.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp</td><td>Place the red screwdriver and the small silver wrench on the table beside the black-handled scissors, each within 5 cm of the scissors.<br><code>near(red_screwdriver, black_handle_scissors, 5) ∧ near(rear_silver_wrench, black_handle_scissors, 5)</code></td><td>video<br><small>medium</small></td><td>✗ 1.5</td><td>✗ 1.5</td><td>✗ 1.5</td></tr>
+<tr><td>20</td><td class="th"><img src="assets/img/bench/indego_clamp2__bring_phone_onto_table.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Put the smartphone on the near-right part of the table where I can reach it.<br><code>in_region(smartphone, near_right)</code></td><td>video<br><small>easy</small></td><td>✗ 0</td><td>✗ 0</td><td>✗ 0</td></tr>
+<tr><td>21</td><td class="th"><img src="assets/img/bench/indego_clamp2__stage_phone_on_block.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Set the smartphone flat on top of the wooden block.<br><code>on_top(smartphone, wooden_block)</code></td><td>video<br><small>easy</small></td><td>✗ 0</td><td>✗ 0</td><td>✗ 0</td></tr>
+<tr><td>22</td><td class="th"><img src="assets/img/bench/indego_clamp2__organize_phone_and_level.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Put the spirit level in the center of the table and set the smartphone beside it, within 3 cm.<br><code>in_region(spirit_level, center) ∧ near(smartphone, spirit_level, 3)</code></td><td>video<br><small>medium</small></td><td>✗ 1.5</td><td>✗ 1.5</td><td>✗ 1.5</td></tr>
+<tr><td>23</td><td class="th"><img src="assets/img/bench/indego_clamp2__prepare_block_work_area.jpg" alt="" loading="lazy" data-zoom></td><td>indego_clamp2</td><td>Place the spirit level in the center of the table within 5 cm of the wooden block, then set the smartphone on top of the block.<br><code>in_region(spirit_level, center) ∧ near(spirit_level, wooden_block, 5) ∧ on_top(smartphone, wooden_block)</code></td><td>video<br><small>hard</small></td><td>✗ 1.5</td><td>✗ 1.5</td><td>✗ 1.5</td></tr>
 </tbody></table></div>
+<p class="note">Rejected by the physical checks: sample_ego_1 · Put the tealight in its holder, set the can upright on the placemat, and place the glass upright on the table beside both the can and placemat. (goal not stable); indego_screw · Place the loose screw on top of the orange cardboard box so it is easy to find. (no feasible goal pose: loose_socket_head_screw: overlaps aluminum_frame_assembly); indego_screw · Bring the silver wrench over and set it on the table within 2 cm of the loose screw. (no feasible goal pose: silver_wrench: overlaps aluminum_frame_assembly); indego_screw · Put the loose screw on the orange box, set the silver wrench on the table within 2 cm of the Allen key, and put the yellow-fob keys on the wooden block. (no feasible goal pose: loose_socket_head_screw: overlaps aluminum_frame_assembly); indego_tape · Move the wire stripper into the right-hand part of the table, close to the packing tape. (no feasible goal pose: black_teal_wire_stripper: goal not met with a 2 cm margin); indego_tape · Set the paintbrush in the near-right area beside the dark smartphone, without covering it. (no feasible goal pose: wide_paintbrush: off the support); indego_tape · Arrange the wire stripper beside the lit phone and the paintbrush beside the dark phone, both in the near-right area with both screens clear. (no feasible goal pose: black_teal_wire_stripper: goal not met with a 2 cm margin); indego_tape · Group the wire stripper and paintbrush on the right side near the packing tape, keeping the two tools close together on the table. (no feasible goal pose: wide_paintbrush: goal not met with a 2 cm margin); indego_clamp · Place the red screwdriver on the near-left part of the table, within 5 cm of the lit-screen phone without covering its screen. (no feasible goal pose: red_screwdriver: goal not met with a 2 cm margin); indego_clamp · Move the long orange tool case to the near-left part of the table and rest the blue long-nose pliers flat on top of it. (no feasible goal pose: long_orange_tool_case: off the support); indego_clamp · Prepare the near workspace: move the long orange case to the near-left area and put the blue pliers on it, place the red screwdriver and silver wrench beside the lit-screen phone, and place the long black clamping tool beside the black-handled scissors, keeping each beside placement within 5 cm. (no feasible goal pose: long_orange_tool_case: off the support); indego_clamp2 · Move the spirit level to the near-right part of the table, keeping it fully supported and clear of the vise. (no feasible goal pose: spirit_level: off the support); indego_clamp2 · Move the spirit level to the near-right part of the table, then place the smartphone flat on its upper surface. (no feasible goal pose: spirit_level: off the support)</p>
 <!-- BENCH:END -->
   <p>Every task with its goal predicates, check results and runs: <a href="benchmark.json">benchmark.json</a>.</p>
   <div class="codebox">
@@ -509,7 +533,7 @@ bash egosim/egosim.sh /abs/path/video.mp4    # scene, tasks, evaluation; the abl
 <pre class="code" id="bib">@misc{egosim2026,
   title  = {EgoSim: From Egocentric Videos to Simulation-Ready Manipulation Tasks
             for Evaluating Foundation-Model Robot Policies},
-  author = {Zhong, Liam N.},
+  author = {Zhong, Ningze},
   year   = {2026},
   url    = {https://github.com/NZ-Liam-Zhong/EgoSim}
 }</pre>
