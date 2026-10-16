@@ -9,7 +9,7 @@
             </div>
             <div class="footer-meta mt-3 mt-md-0 text-md-right">
                 <div>© {{ site.time | date: "%Y" }} {{ site.data.profile.primary_name }} · Last updated {{ site.time | date: "%b %Y" }}</div>
-                <div>{{ site.data.display.footer_text }}</div>
+                {% if site.data.display.footer_text %}<div>{{ site.data.display.footer_text }}</div>{% endif %}
             </div>
         </div>
     </div>

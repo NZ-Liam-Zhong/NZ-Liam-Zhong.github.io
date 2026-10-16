@@ -30,9 +30,29 @@ $(function () {
         $('#navbarResponsive').collapse('hide');
     });
 
+    // Highlight the nav link of the section in view. Bootstrap's scrollspy only switches when a
+    // section reaches the top of the viewport, which short pages on tall screens never do.
+    var navLinks = Array.prototype.slice.call(document.querySelectorAll('#site-nav .nav-link[href^="#"]'));
+    var navSections = navLinks.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    var updateActiveLink = function () {
+        if (!navLinks.length) return;
+        var marker = window.innerHeight * 0.35;
+        var current = 0;
+        navSections.forEach(function (el, i) {
+            if (el && el.getBoundingClientRect().top <= marker) current = i;
+        });
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+            current = navLinks.length - 1;
+        }
+        navLinks.forEach(function (a, i) { a.classList.toggle('active', i === current); });
+    };
+
     // Add a hairline under the navbar once the page is scrolled.
     var $nav = $('#site-nav');
-    var onScroll = function () { $nav.toggleClass('is-scrolled', window.scrollY > 8); };
-    $(window).on('scroll', onScroll);
+    var onScroll = function () {
+        $nav.toggleClass('is-scrolled', window.scrollY > 8);
+        updateActiveLink();
+    };
+    $(window).on('scroll resize', onScroll);
     onScroll();
 })

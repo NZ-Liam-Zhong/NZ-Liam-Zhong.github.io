@@ -76,14 +76,9 @@ education:
   position: B.Eng.
   date: Sep 2021 – Jul 2025
 
-awards:
-- name: Samsung Scholarship
-  date: "2023"
-- name: Academic Excellence Scholarship
-  date: "2023, 2024"
-
 service:
-- name: Reviewer, CVPR
-  date: "2026"
-- name: Reviewer, ECCV
-  date: "2026"
+- name: Reviewer
+  venues:
+  - NeurIPS
+  - CVPR 2026
+  - ECCV 2026

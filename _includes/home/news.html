@@ -1,12 +1,44 @@
+{%- assign profile = site.data.profile -%}
+{%- assign display = site.data.display.homepage -%}
 {%- assign news = site.news | sort: "date" | reverse -%}
+{%- assign count_news = news | size -%}
+{%- assign has_news = false -%}
+{%- if display.show_news and count_news > 0 %}{% assign has_news = true %}{% endif -%}
+{%- assign has_service = false -%}
+{%- if display.show_service and profile.service %}{% assign has_service = true %}{% endif -%}
+
+{% if has_news or has_service %}
 <section id="news" class="section reveal">
-    <h2 class="section-title"><i class="fas fa-bolt"></i> News</h2>
-    <ol class="news-list">
-        {% for item in news limit: include.limit %}
-        <li class="news-item">
-            <time class="news-date" datetime="{{ item.date | date: '%Y-%m-%d' }}">{{ item.date | date: "%b %Y" }}</time>
-            <div class="news-title">{{ item.title }}</div>
-        </li>
-        {% endfor %}
-    </ol>
+    <div class="row">
+        {% if has_news %}
+        <div class="{% if has_service %}col-lg-7 mb-4 mb-lg-0{% else %}col-12{% endif %}">
+            <h2 class="section-title"><i class="fas fa-bolt"></i> News</h2>
+            <ol class="news-list">
+                {% for item in news limit: display.num_news %}
+                <li class="news-item">
+                    <time class="news-date" datetime="{{ item.date | date: '%Y-%m-%d' }}">{{ item.date | date: "%b %Y" }}</time>
+                    <div class="news-title">{{ item.title }}</div>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+
+        {% if has_service %}
+        <div class="{% if has_news %}col-lg-5{% else %}col-12{% endif %}" id="service">
+            <h2 class="section-title"><i class="fas fa-users"></i> Academic Service</h2>
+            <div class="service-list">
+                {% for item in profile.service %}
+                <div class="service-item">
+                    <div class="service-role">{{ item.name }}</div>
+                    <div class="service-venues">
+                        {% for venue in item.venues %}<span class="venue">{{ venue }}</span>{% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </section>
+{% endif %}

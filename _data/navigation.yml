@@ -6,8 +6,6 @@ pages:
   url: /#about
 - name: Experience
   url: /#experience
-- name: Honors
-  url: /#honors
 - name: News
   url: /#news
 - name: Publications

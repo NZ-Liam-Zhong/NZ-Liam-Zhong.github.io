@@ -2,8 +2,6 @@
 layout: default
 title : Home
 navbar_title: Home
-body_attr: >-
-  data-spy="scroll" data-target="#site-nav" data-offset="120"
 ---
 {%- assign display = site.data.display.homepage -%}
 
@@ -17,16 +15,7 @@ body_attr: >-
     {% include home/experience.html %}
 {% endif %}
 
-{% if display.show_honors %}
-    {% include home/honors.html %}
-{% endif %}
-
-{% if display.show_news %}
-    {% assign count_news = site.news | size %}
-    {% if count_news > 0 %}
-        {% include home/news.html limit=display.num_news %}
-    {% endif %}
-{% endif %}
+{% include home/news.html %}
 
 {% if display.show_selected_publications %}
     {% assign pubs = site.publications | sort: "date" | reverse | where: "selected", true %}
