@@ -1,0 +1,70 @@
+{%- assign profile = site.data.profile -%}
+<section id="about" class="hero">
+    <div class="row align-items-center">
+        <div class="col-lg-7 order-2 order-lg-1">
+            {% if profile.eyebrow %}
+            <div class="eyebrow"><span class="eyebrow-dot"></span>{{ profile.eyebrow }}</div>
+            {% endif %}
+            <h1 class="hero-name">
+                {{ profile.primary_name }}
+                {% if profile.secondary_name and profile.secondary_name != "" %}<small>{{ profile.secondary_name }}</small>{% endif %}
+            </h1>
+            <p class="hero-headline">{{ profile.headline }}</p>
+            {% if profile.short_bio %}
+            <p class="hero-bio">{{ profile.short_bio }}</p>
+            {% endif %}
+
+            {% if profile.interests %}
+            <div class="chips">
+                <span class="chips-label">Focus</span>
+                {% for interest in profile.interests %}<span class="chip">{{ interest }}</span>{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="hero-actions">
+                <a class="btn btn-ink" href="mailto:{{ profile.email | encode_email }}">
+                    <i class="fas fa-envelope"></i> Get in touch
+                </a>
+                {% for link in profile.links %}
+                <a class="btn btn-ghost" href="{{ link.url }}" target="_blank" rel="noopener">
+                    {{ link.name }} <i class="{{ link.icon }} small"></i>
+                </a>
+                {% endfor %}
+                {% if profile.cv_link %}
+                <a class="btn btn-ghost" href="{{ profile.cv_link | relative_url }}" target="_blank" rel="noopener"><i class="fas fa-file-alt"></i> CV</a>
+                {% endif %}
+                {% if profile.gscholar %}
+                {%- if profile.gscholar contains 'scholar.google' -%}
+                {%- assign gscholar_url = profile.gscholar -%}
+                {%- else -%}
+                {%- assign gscholar_url = 'https://scholar.google.com/citations?user=' | append: profile.gscholar -%}
+                {%- endif -%}
+                <a class="btn btn-icon" href="{{ gscholar_url }}" target="_blank" rel="noopener" title="Google Scholar"><i class="ai ai-google-scholar"></i></a>
+                {% endif %}
+                {% if profile.github %}
+                <a class="btn btn-icon" href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener" title="GitHub"><i class="fab fa-github"></i></a>
+                {% endif %}
+                {% if profile.linkedin %}
+                <a class="btn btn-icon" href="https://www.linkedin.com/in/{{ profile.linkedin }}" target="_blank" rel="noopener" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                {% endif %}
+                {% if profile.twitter %}
+                <a class="btn btn-icon" href="https://twitter.com/{{ profile.twitter }}" target="_blank" rel="noopener" title="Twitter"><i class="fab fa-x-twitter"></i></a>
+                {% endif %}
+                {% if profile.orcid %}
+                <a class="btn btn-icon" href="https://orcid.org/{{ profile.orcid }}" target="_blank" rel="noopener" title="ORCID"><i class="fab fa-orcid"></i></a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if profile.portrait_url %}
+        <div class="col-lg-5 order-1 order-lg-2">
+            <figure class="portrait">
+                <img src="{{ profile.portrait_url | relative_url }}" alt="Portrait of {{ profile.primary_name }}" width="720" height="900">
+                {% if profile.portrait_caption %}
+                <figcaption><i class="fas fa-location-dot"></i> {{ profile.portrait_caption }}</figcaption>
+                {% endif %}
+            </figure>
+        </div>
+        {% endif %}
+    </div>
+</section>

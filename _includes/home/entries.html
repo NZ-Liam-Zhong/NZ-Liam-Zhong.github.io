@@ -1,0 +1,19 @@
+<div class="entry-list">
+    {% for item in include.items %}
+    <div class="entry">
+        <div class="entry-logo">
+            {% if item.logo %}<img src="{{ item.logo | relative_url }}" alt="{{ item.name }}" loading="lazy">{% endif %}
+        </div>
+        <div class="entry-body">
+            <div class="entry-head">
+                <h3 class="entry-title">
+                    {% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}
+                </h3>
+                <span class="entry-date">{{ item.date }}</span>
+            </div>
+            <div class="entry-role">{{ item.position }}{% if item.dept %}<span class="entry-dept"> · {{ item.dept }}</span>{% endif %}</div>
+            {% if item.description %}<p class="entry-desc">{{ item.description }}</p>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

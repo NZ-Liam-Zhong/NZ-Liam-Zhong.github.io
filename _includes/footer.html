@@ -1,15 +1,15 @@
-<footer class="footer">
+<footer class="site-footer">
     <div class="container">
-        <div class="row my-3">
-            <div class="col-6">
-                <div class="text-muted">
-                    <i>Last updated: {{ "now" | date: "%b %Y" }}</i>
-                </div>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <div class="footer-name">{{ site.data.profile.primary_name }}</div>
+                <a class="footer-email" href="mailto:{{ site.data.profile.email | encode_email }}">
+                    <span class="email-text">{{ site.data.profile.email | replace: "@", " (at) " }}</span>
+                </a>
             </div>
-            <div class="col-6">
-                <div class="text-right text-muted">
-                    {{ site.data.display.footer_text }}
-                </div>
+            <div class="footer-meta mt-3 mt-md-0 text-md-right">
+                <div>© {{ site.time | date: "%Y" }} {{ site.data.profile.primary_name }} · Last updated {{ site.time | date: "%b %Y" }}</div>
+                <div>{{ site.data.display.footer_text }}</div>
             </div>
         </div>
     </div>

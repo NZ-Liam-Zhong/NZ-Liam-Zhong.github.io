@@ -1,30 +1,43 @@
 ---
 layout: default
-title : Homepage
+title : Home
 navbar_title: Home
+body_attr: >-
+  data-spy="scroll" data-target="#site-nav" data-offset="120"
 ---
-{% include widgets/profile_card.html %}
+{%- assign display = site.data.display.homepage -%}
 
-{% include widgets/debug_repo_name.html %}
+{% include home/hero.html %}
 
-{% include widgets/debug_url.html %}
-
-{% if site.data.display.homepage.show_experience %}
-    {% include widgets/experience_card.html %}
+{% if display.show_philosophy and site.data.profile.philosophy %}
+    {% include home/philosophy.html %}
 {% endif %}
 
-{% if site.data.display.homepage.show_news %}
+{% if display.show_experience %}
+    {% include home/experience.html %}
+{% endif %}
+
+{% if display.show_honors %}
+    {% include home/honors.html %}
+{% endif %}
+
+{% if display.show_news %}
     {% assign count_news = site.news | size %}
     {% if count_news > 0 %}
-        {% include widgets/news_card.html limit=site.data.display.homepage.num_news %}
+        {% include home/news.html limit=display.num_news %}
     {% endif %}
 {% endif %}
 
-{% if site.data.display.homepage.show_selected_publications %}
+{% if display.show_selected_publications %}
     {% assign pubs = site.publications | sort: "date" | reverse | where: "selected", true %}
-    {% 
-        include widgets/publication_card.html 
-        publications=pubs
-        title='<i class="fas fa-star"></i> Selected Publications'
-    %}
+    {% assign count_pubs = pubs | size %}
+    {% if count_pubs > 0 %}
+    <section id="publications" class="section">
+        {%
+            include widgets/publication_card.html
+            publications=pubs
+            title='<i class="fas fa-star"></i> Selected Publications'
+        %}
+    </section>
+    {% endif %}
 {% endif %}

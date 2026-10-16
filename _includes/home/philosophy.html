@@ -1,0 +1,20 @@
+{%- assign philosophy = site.data.profile.philosophy -%}
+<section id="philosophy" class="section reveal">
+    <div class="philosophy">
+        <div class="section-kicker">Philosophy</div>
+        <blockquote class="philosophy-quote">{{ philosophy.title }}</blockquote>
+        <div class="row">
+            {% for point in philosophy.points %}
+            <div class="col-md-6">
+                <div class="principle">
+                    <span class="principle-icon"><i class="{{ point.icon }}"></i></span>
+                    <div>
+                        <h3 class="principle-title">{{ point.title }}</h3>
+                        <p class="principle-text">{{ point.text }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

@@ -2,63 +2,88 @@ primary_name: "Ningze Zhong"
 secondary_name: ""
 navbar_name: "Ningze Zhong"
 
-positions:
- #logo: /assets/images/badges/MIT_Social_circle.png  # Logo is optional
-- name: 'Co-founder of <a href="https://runtime.si/" target="_blank"><b>Runtime</b></a>, backed by Y Combinator, Pareto Holdings and NVIDIA Inception Program.'
-- name: I was born in Guangdong-Hong Kong-Macau Greater Bay Area in China and I can speek Mandarin, Cantonese, English and Hakka. I mainly focus on `Control and Optimization`, `Reinforcement Learning`, `Computer Vision` and so on. I serve as a reviewer of CVPR 2026, ECCV 2026 and so on.
-- name: My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.
+# Small label shown above the name on the homepage.
+eyebrow: "Co-founder, Runtime"
+
+headline: >-
+  Co-founder of <a href="https://runtime.si/" target="_blank" rel="noopener">Runtime</a>,
+  backed by Y Combinator, Pareto Holdings and NVIDIA Inception Program.
+  M.S.E. in Robotics at the GRASP Lab, University of Pennsylvania.
+
+short_bio: >-
+  I was born in the Guangdong-Hong Kong-Macau Greater Bay Area in China, and I speak
+  Mandarin, Cantonese, English and Hakka. I mainly focus on control and optimization,
+  reinforcement learning and computer vision.
+
+interests:
+- Control & Optimization
+- Reinforcement Learning
+- Computer Vision
+
+philosophy:
+  title: 'Curiosity-led research, <span class="no-break">value-led start-ups.</span>'
+  points:
+  - icon: fas fa-flask
+    title: Research
+    text: >-
+      To truly maximize social value, scientific research should avoid the utilitarianism
+      of business. It should boldly explore uncharted territories, not just follow trends
+      or rush to publish.
+  - icon: fas fa-rocket
+    title: Start-ups
+    text: >-
+      Entrepreneurship should focus on creating real value for society, not on copying
+      others or joining the race to sameness.
+
 email: "lemonzhong001@163.com"
+links:
+- name: Runtime
+  url: https://runtime.si/
+  icon: fas fa-arrow-up-right-from-square
 # cv_link: link-to-your-cv-file
 # gscholar: xFmQpf4AAAAJ  # This is an example, replace it with your own Google Scholar ID
 # github: your_github_id
 # twitter: your_twitter_id  # Do not include the '@' symbol
-# wechat_qrcode: /assets/images/etc/wechat.jpg
-# wechat_prompt: >-
-#   Please tell me your <strong>name</strong> and <strong>affiliation</strong> (current or past) when adding my wechat. Thanks!
-# linkedin: your-linked-in-id 
+# linkedin: your-linked-in-id
 # orcid: 0000-0000-0000-0000
 
-short_bio_text_justify: True
-  <p>
-     My philosophy is Curiosity-led research and value-led start-ups： To truly maximize social value, scientific research should avoid the utilitarianism of business. It should boldly explore uncharted territories, not just follow trends or rush to publish. Likewise, entrepreneurship should focus on creating real value for society—not on copying others or joining the race to sameness.  
-  </p>
-  #<p>
-  #  A <a href="https://en.wikipedia.org/wiki/Bicolor_cat" target="_blank">bicolor cat</a> is a cat with white fur combined with fur of some other colour, for example solid black, tabby, or colourpointed.
-  #</p>
-
-
-portrait_url: /assets/images/photos/person.jpg
-portrait_caption: >-
-  Photo by My Friend in Cancun.
-
-education:
-- name: GRASP Lab, University of Pennsylvania 
-  logo: /assets/images/badges/upen.png
-  position: M.SE in Robotics (Supervised by Prof. Vijay Kumar)
-  date: Sep. 2025 - Jul. 2027
-  
-- name: Sun Yat-sen University
-  logo: /assets/images/badges/sysu.jpg
-  position: B.Eng (Supervised by Prof. Yulan Guo)
-  date: Sep. 2021 - Jul. 2025
+portrait_url: /assets/images/photos/portrait.jpg
+portrait_caption: "Cancún, Mexico"
 
 experience:
-
 - name: Runtime
-  dept: '<a href="https://runtime.si/" target="_blank">runtime.si</a>'
+  url: https://runtime.si/
   logo: /assets/images/badges/runtime.svg
-  position: Co-founder (Backed by Y Combinator, Pareto Holdings and NVIDIA Inception Program)
+  position: Co-founder
   date: Present
+  description: Backed by Y Combinator, Pareto Holdings and NVIDIA Inception Program.
 
-- name: Shenzhen Innox Academy
-  logo: /assets/images/badges/innox.jpg
-  position: VC Winter Camp Member (Headed by DJI Founder, Prof.Zexiang Li)
-  date: 2023 winter 
+- name: Shenzhen innoX Academy
+  logo: /assets/images/badges/innox-logo.jpg
+  position: VC Winter Camp Member
+  date: Winter 2023
+  description: Headed by DJI founder Prof. Zexiang Li.
 
+education:
+- name: University of Pennsylvania
+  dept: GRASP Lab
+  logo: /assets/images/badges/upenn-logo.png
+  position: M.S.E. in Robotics
+  date: Sep 2025 – Jul 2027
 
+- name: Sun Yat-sen University
+  logo: /assets/images/badges/sysu-logo.jpg
+  position: B.Eng.
+  date: Sep 2021 – Jul 2025
 
 awards:
 - name: Samsung Scholarship
-  date: 2023
+  date: "2023"
 - name: Academic Excellence Scholarship
-  date: 2023, 2024
+  date: "2023, 2024"
+
+service:
+- name: Reviewer, CVPR
+  date: "2026"
+- name: Reviewer, ECCV
+  date: "2026"

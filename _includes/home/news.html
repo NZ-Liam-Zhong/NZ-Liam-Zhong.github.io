@@ -1,0 +1,12 @@
+{%- assign news = site.news | sort: "date" | reverse -%}
+<section id="news" class="section reveal">
+    <h2 class="section-title"><i class="fas fa-bolt"></i> News</h2>
+    <ol class="news-list">
+        {% for item in news limit: include.limit %}
+        <li class="news-item">
+            <time class="news-date" datetime="{{ item.date | date: '%Y-%m-%d' }}">{{ item.date | date: "%b %Y" }}</time>
+            <div class="news-title">{{ item.title }}</div>
+        </li>
+        {% endfor %}
+    </ol>
+</section>

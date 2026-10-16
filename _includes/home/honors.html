@@ -1,0 +1,25 @@
+{%- assign profile = site.data.profile -%}
+<section id="honors" class="section reveal">
+    <div class="row">
+        {% if profile.awards %}
+        <div class="col-md-6 mb-4 mb-md-0 d-flex flex-column">
+            <h2 class="section-title"><i class="fas fa-award"></i> Honors &amp; Awards</h2>
+            <ul class="plain-list">
+                {% for item in profile.awards %}
+                <li><span>{{ item.name }}</span><span class="plain-list-date">{{ item.date }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% if profile.service %}
+        <div class="col-md-6 d-flex flex-column">
+            <h2 class="section-title"><i class="fas fa-users"></i> Academic Service</h2>
+            <ul class="plain-list">
+                {% for item in profile.service %}
+                <li><span>{{ item.name }}</span><span class="plain-list-date">{{ item.date }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</section>

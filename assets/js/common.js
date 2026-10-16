@@ -25,17 +25,14 @@ $(function () {
 
     $('[data-toggle="tooltip"]').tooltip()
 
-    var $grid = $('.grid').masonry({
-        "percentPosition": true,
-        "itemSelector": ".grid-item",
-        "columnWidth": ".grid-sizer"
-    });
-    // layout Masonry after each image loads
-    $grid.imagesLoaded().progress(function () {
-        $grid.masonry('layout');
+    // Collapse the mobile menu after picking a section.
+    $('#navbarResponsive .nav-link').on('click', function () {
+        $('#navbarResponsive').collapse('hide');
     });
 
-    $(".lazy").on("load", function () {
-        $grid.masonry('layout');
-    });
+    // Add a hairline under the navbar once the page is scrolled.
+    var $nav = $('#site-nav');
+    var onScroll = function () { $nav.toggleClass('is-scrolled', window.scrollY > 8); };
+    $(window).on('scroll', onScroll);
+    onScroll();
 })

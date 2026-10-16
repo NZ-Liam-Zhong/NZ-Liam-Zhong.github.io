@@ -1,0 +1,17 @@
+{%- assign profile = site.data.profile -%}
+<section id="experience" class="section reveal">
+    <div class="row">
+        {% if profile.experience %}
+        <div class="col-lg-6 mb-4 mb-lg-0 d-flex flex-column">
+            <h2 class="section-title"><i class="fas fa-briefcase"></i> Experience</h2>
+            {% include home/entries.html items=profile.experience %}
+        </div>
+        {% endif %}
+        {% if profile.education %}
+        <div class="col-lg-6 d-flex flex-column" id="education">
+            <h2 class="section-title"><i class="fas fa-graduation-cap"></i> Education</h2>
+            {% include home/entries.html items=profile.education %}
+        </div>
+        {% endif %}
+    </div>
+</section>
