@@ -1,0 +1,886 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>KILN &#8212; KILN</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=4418a689" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="_static/documentation_options.js?v=c73c0f3e"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=eef4a3d2"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'index';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting Started" href="quickstart/index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="#">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">KILN</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1 current active">
+                <a class="reference internal" href="#">
+                    KILN
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/hardware.html">Hardware Checklist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/install-client.html">Install the Mac Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/install-jetson.html">Install the Jetson Edge Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/first-teleop.html">First Teleop Checklist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/gello-master-arm.html">GELLO Master Arm</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Software System</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/network-topology.html">Network Topology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/control-vs-video.html">Control vs Video Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/data-pipeline.html">Data Collection Pipeline</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reproduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="reproduction/index.html">Reproduction Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reproduction/lab-lan.html">Lab LAN Direct Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reproduction/cn-relay.html">Cloud Relay Profile (<code class="docutils literal notranslate"><span class="pre">cn_relay</span></code>)</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="configuration/index.html">Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration/schema.html">Configuration Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration/secrets.html">Secrets Management</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="reference/ports-services.html">Ports and Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/cli-doctor.html">CLI: <code class="docutils literal notranslate"><span class="pre">lambda2</span> <span class="pre">doctor</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/troubleshooting.html">Troubleshooting</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello/issues/new?title=Issue%20on%20page%20%2Findex.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/index.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>KILN</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-features">Supported Features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quicklinks">Quicklinks</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#repository-layout">Repository Layout</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="kiln">
+<h1>KILN<a class="headerlink" href="#kiln" title="Link to this heading">#</a></h1>
+<p><strong>Kinesthetic Infrastructure for Learning Networked Robot</strong></p>
+<p>KILN is an integrated hardware-software teleoperation and learning system for <strong>embodied robots</strong> working in <strong>contact-rich environments</strong>. One networked pipeline connects the operator station — macOS workstation, GELLO master arms, haptic input — through a cloud relay to the robot’s on-board <strong>Jetson Thor</strong> edge computer, which directly drives the <strong>Tianji Marvin dual-arm robot</strong>, <strong>VMR mobile base</strong>, and <strong>dual Intel RealSense D405</strong> video streams.</p>
+<p>The loop is <strong>bidirectional</strong>: human demonstrations teach the robot in real time, collected data trains policies, and policies deploy back onto the same hardware. We are building a contributor-friendly repository with modular client, edge, and data-collection components so labs can <strong>teleoperate, collect, train, and deploy — then improve — on shared infrastructure</strong>.</p>
+<figure class="align-center" id="kiln-framework">
+<a class="reference internal image-reference" href="_images/kiln-system-framework.png"><img alt="_images/kiln-system-framework.png" src="_images/kiln-system-framework.png" style="width: 90%;" />
+</a>
+<figcaption>
+<p><span class="caption-text"><strong>KILN</strong> — <em>Kinesthetic Infrastructure for Learning Networked Robot</em>. Operator-site haptic guidance, cloud training, and remote robot autonomy share one networked pipeline: teleoperate → collect → train → deploy → improve together.</span><a class="headerlink" href="#kiln-framework" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+<p>The two ends of the loop:</p>
+<div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
+<div class="sd-row sd-row-cols-2 sd-row-cols-xs-2 sd-row-cols-sm-2 sd-row-cols-md-2 sd-row-cols-lg-2 sd-g-2 sd-g-xs-2 sd-g-sm-2 sd-g-md-2 sd-g-lg-2 docutils">
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Operator side</div>
+<a class="reference internal image-reference" href="_images/gello-master-arm.png"><img alt="_images/gello-master-arm.png" src="_images/gello-master-arm.png" style="width: 100%;" />
+</a>
+<p class="sd-card-text"><strong>GELLO master-arm station</strong> — dual Dynamixel leader arms with buttons and jog input. The human teaches through this interface; setup and calibration live in the <a class="reference internal" href="guides/gello-master-arm.html"><span class="std std-doc">GELLO master arm guide</span></a>.</p>
+</div>
+</div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Robot side</div>
+<a class="reference internal image-reference" href="_images/kiln-system-framework.png"><img alt="_images/kiln-system-framework.png" src="_images/kiln-system-framework.png" style="width: 100%;" />
+</a>
+<p class="sd-card-text"><strong>Contact-rich manipulation</strong> — the Tianji Marvin dual arms with grippers working in a multi-contact environment.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">#</a></h2>
+<p>The documentation is organized into five parts:</p>
+<dl class="simple myst">
+<dt>🏃 <strong>Getting Started</strong></dt><dd><p>Install hardware, set up the Mac client and Jetson edge, run your first teleop session, and set up the GELLO master arm.</p>
+</dd>
+<dt>🧠 <strong>Software System</strong></dt><dd><p>System architecture, network topology, and the control-vs-video dual-link design.</p>
+</dd>
+<dt>🔁 <strong>Reproduction</strong></dt><dd><p>Reproduction paths from zero, lab LAN direct mode, and the cloud relay profile.</p>
+</dd>
+<dt>🔧 <strong>Configuration</strong></dt><dd><p>Unified config schema, profiles, and secrets management.</p>
+</dd>
+<dt>📚 <strong>Reference</strong></dt><dd><p>Ports, services, CLI tools, and troubleshooting.</p>
+</dd>
+</dl>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/index.html#recommended-path">Recommended path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/index.html#before-you-begin">Before you begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/index.html#quick-start-mac-client-only">Quick start (Mac client only)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/hardware.html">Hardware Checklist</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/hardware.html#bill-of-materials-full-reproduction">Bill of materials (full reproduction)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/hardware.html#optional-development">Optional / development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/hardware.html#bring-up-order">Bring-up order</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/hardware.html#ready-check">Ready check</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/hardware.html#network-expectations">Network expectations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/install-client.html">Install the Mac Client</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#install-and-launch">Install and launch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#directory-layout">Directory layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#primary-configuration">Primary configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#prebuilt-binary">Prebuilt binary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-client.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/install-jetson.html">Install the Jetson Edge Stack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#runtime-workspace">Runtime workspace</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#from-bare-metal-first-bring-up">From bare metal (first bring-up)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#deploy-from-mac">Deploy from Mac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#first-time-setup-on-jetson">First-time setup on Jetson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#git-layout-vs-on-device-layout">Git layout vs on-device layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#systemd-services">systemd services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#verify-services">Verify services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#site-configuration-on-jetson">Site configuration on Jetson</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/install-jetson.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/first-teleop.html">First Teleop Checklist</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#environment">1. Environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#launch-client">2. Launch client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#connect-cloud-relay">3. Connect cloud relay</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#enable-and-verify-arms">4. Enable and verify arms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#verify-video-separate-link">5. Verify video (separate link!)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#chassis-optional">6. Chassis (optional)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#emergency-stop">7. Emergency stop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#common-shortcuts">Common shortcuts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart/first-teleop.html#if-something-fails">If something fails</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/gello-master-arm.html">GELLO Master Arm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#hardware-overview">Hardware overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#software-path">Software path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#operator-controls">Operator controls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#esp32-merged-firmware">ESP32 merged firmware</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#calibration">Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#kiln-context">KILN context</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/gello-master-arm.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Software System</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="architecture/index.html">System Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/index.html#high-level-stack">High-level stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/index.html#kiln-learning-loop">KILN learning loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/index.html#repository-modules">Repository modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/index.html#key-design-rules">Key design rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/index.html#related-pages">Related pages</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/network-topology.html">Network Topology</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#typical-deployment">Typical deployment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#device-addressing-example-lab">Device addressing (example lab)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#relay-mode-vs-direct-mode">Relay mode vs direct mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#region-relay-architecture">Region relay architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#security-decisions-relay-product">Security decisions (relay product)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/network-topology.html#environment-variable-overrides">Environment variable overrides</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/control-vs-video.html">Control vs Video Links</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/control-vs-video.html#control-path">Control path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/control-vs-video.html#video-path">Video path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/control-vs-video.html#why-they-are-separate">Why they are separate</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture/data-pipeline.html">Data Collection Pipeline</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-pipeline.html#end-to-end-flow">End-to-end flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-pipeline.html#modalities-v1-default">Modalities (v1 default)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-pipeline.html#local-dataset-layout-lerobot-v2">Local dataset layout (LeRobot v2)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-pipeline.html#runtime-flags-unified-config">Runtime flags (unified config)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-pipeline.html#related-kiln-loop">Related KILN loop</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reproduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reproduction/index.html">Reproduction Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/index.html#what-reproduction-means">What “reproduction” means</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/index.html#the-five-step-path">The five-step path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/index.html#profiles">Profiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/index.html#verification-tooling">Verification tooling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/index.html#guides-in-this-section">Guides in this section</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reproduction/lab-lan.html">Lab LAN Direct Mode</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/lab-lan.html#when-to-use">When to use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/lab-lan.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/lab-lan.html#mac-client">Mac client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/lab-lan.html#verification">Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/lab-lan.html#limitations">Limitations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reproduction/cn-relay.html">Cloud Relay Profile (<code class="docutils literal notranslate"><span class="pre">cn_relay</span></code>)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#which-config-path-to-use">Which config path to use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#profile-file">Profile file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#key-settings">Key settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#setup-steps">Setup steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#token">Token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#connect">Connect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#operator-lease">Operator lease</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reproduction/cn-relay.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="configuration/index.html">Configuration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration/index.html#what-to-edit-today">What to edit today</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/index.html#unified-entry-p0">Unified entry (P0)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/index.html#design-principles">Design principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/index.html#common-workflow-change-site-ip">Common workflow: change site IP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/index.html#further-reading">Further reading</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration/schema.html">Configuration Schema</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#entry-file-lambda2-yaml">Entry file (<code class="docutils literal notranslate"><span class="pre">lambda2.yaml</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#system"><code class="docutils literal notranslate"><span class="pre">system</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#runtime"><code class="docutils literal notranslate"><span class="pre">runtime</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#network-extends-legacy-site-yaml"><code class="docutils literal notranslate"><span class="pre">network</span></code> (extends legacy <code class="docutils literal notranslate"><span class="pre">site.yaml</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#environment-overrides">Environment overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/schema.html#directory-layout">Directory layout</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration/secrets.html">Secrets Management</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#never-commit">Never commit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#local-secrets-file">Local secrets file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#runtime-usage">Runtime usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#yaml-rule">YAML rule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#relay-server">Relay server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration/secrets.html#if-a-secret-was-committed">If a secret was committed</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference/ports-services.html">Ports and Services</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference/ports-services.html#port-table">Port table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/ports-services.html#systemd-units-jetson">systemd units (Jetson)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/ports-services.html#check-listeners">Check listeners</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/ports-services.html#source-mapping-git-jetson">Source mapping (Git → Jetson)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference/cli-doctor.html">CLI: <code class="docutils literal notranslate"><span class="pre">lambda2</span> <span class="pre">doctor</span></code></a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference/cli-doctor.html#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/cli-doctor.html#what-it-checks">What it checks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/cli-doctor.html#when-to-run">When to run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/cli-doctor.html#status">Status</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/troubleshooting.html">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#symptom-index">Symptom index</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#control-link-debug">Control link debug</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#video-link-debug">Video link debug</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#config-sanity">Config sanity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#service-restart-jetson">Service restart (Jetson)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#code-sync">Code sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/troubleshooting.html#reporting-issues">Reporting issues</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="supported-features">
+<h2>Supported Features<a class="headerlink" href="#supported-features" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Module</p></th>
+<th class="head"><p>Runtime</p></th>
+<th class="head"><p>Protocol / Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Gtk workstation UI</p></td>
+<td><p>Mac <code class="docutils literal notranslate"><span class="pre">client/workstation/</span></code></p></td>
+<td><p>Video, arm control, chassis tabs</p></td>
+</tr>
+<tr class="row-odd"><td><p>GELLO master-arm follow</p></td>
+<td><p>Mac USB Dynamixel</p></td>
+<td><p>Commands forwarded to Jetson agent</p></td>
+</tr>
+<tr class="row-even"><td><p>ESP32 buttons / joystick</p></td>
+<td><p>Mac USB serial</p></td>
+<td><p>Merged firmware → workstation</p></td>
+</tr>
+<tr class="row-odd"><td><p>SpaceMouse</p></td>
+<td><p>Jetson USB (Mac fallback)</p></td>
+<td><p>HID inside agent</p></td>
+</tr>
+<tr class="row-even"><td><p>Dual-arm control</p></td>
+<td><p>Jetson <code class="docutils literal notranslate"><span class="pre">thor_joint_agent</span> <span class="pre">:15666</span></code></p></td>
+<td><p>JSON over TCP</p></td>
+</tr>
+<tr class="row-odd"><td><p>PGC grippers</p></td>
+<td><p>Jetson agent RS485</p></td>
+<td><p>Modbus</p></td>
+</tr>
+<tr class="row-even"><td><p>VMR chassis</p></td>
+<td><p>Jetson <code class="docutils literal notranslate"><span class="pre">joystick_receiver</span> <span class="pre">:9100</span></code></p></td>
+<td><p>TCP → VMR</p></td>
+</tr>
+<tr class="row-odd"><td><p>Dual D405 video</p></td>
+<td><p>Jetson → RTP → relay</p></td>
+<td><p>UDP <code class="docutils literal notranslate"><span class="pre">:5600</span></code> / <code class="docutils literal notranslate"><span class="pre">:5602</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>LeRobot recording</p></td>
+<td><p>Jetson</p></td>
+<td><p>Optional S3 upload</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="quicklinks">
+<h2>Quicklinks<a class="headerlink" href="#quicklinks" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Link</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello">GitHub</a></p></td>
+<td><p>Source repository</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello/releases">Releases</a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lambda2Teleop.dmg</span></code> macOS client</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="configuration/index.html"><span class="std std-doc">Configuration guide</span></a></p></td>
+<td><p>Site, teleop, RTP, recording, S3</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="reproduction/index.html"><span class="std std-doc">Five-step path</span></a></p></td>
+<td><p>From zero to verified teleop</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="repository-layout">
+<h2>Repository Layout<a class="headerlink" href="#repository-layout" title="Link to this heading">#</a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Lambda2-teleoperation-gello/
+├── README.md          # Quick overview (Chinese)
+├── docs/              # KILN documentation site (English)
+├── config/            # Unified config schema + doctor CLI
+├── client/            # Mac/PC workstation + GELLO + chassis UI
+└── jetson/            # Jetson deploy bundle + edge services
+</pre></div>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="right-next"
+       href="quickstart/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Getting Started</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contents">Contents</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-features">Supported Features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quicklinks">Quicklinks</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#repository-layout">Repository Layout</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Lambda Robotics
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Lambda Robotics.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

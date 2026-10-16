@@ -32,6 +32,12 @@ plugins:
 #   - vendor/gems/
 #   - vendor/ruby/
 
+# Sphinx asset folders under /Lambda2/ start with "_" and would otherwise be dropped by Jekyll.
+include:
+  - _static
+  - _images
+  - _sphinx_design_static
+
 # timezone: Asia/Shanghai
 
 collections:

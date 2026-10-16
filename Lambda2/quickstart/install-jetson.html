@@ -1,0 +1,694 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Install the Jetson Edge Stack &#8212; KILN</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=4418a689" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../_static/documentation_options.js?v=c73c0f3e"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=eef4a3d2"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'quickstart/install-jetson';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="First Teleop Checklist" href="first-teleop.html" />
+    <link rel="prev" title="Install the Mac Client" href="install-client.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">KILN</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../index.html">
+                    KILN
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware.html">Hardware Checklist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install-client.html">Install the Mac Client</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Install the Jetson Edge Stack</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first-teleop.html">First Teleop Checklist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/gello-master-arm.html">GELLO Master Arm</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Software System</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture/network-topology.html">Network Topology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture/control-vs-video.html">Control vs Video Links</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture/data-pipeline.html">Data Collection Pipeline</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reproduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../reproduction/index.html">Reproduction Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reproduction/lab-lan.html">Lab LAN Direct Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reproduction/cn-relay.html">Cloud Relay Profile (<code class="docutils literal notranslate"><span class="pre">cn_relay</span></code>)</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../configuration/index.html">Configuration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/schema.html">Configuration Schema</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/secrets.html">Secrets Management</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../reference/ports-services.html">Ports and Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/cli-doctor.html">CLI: <code class="docutils literal notranslate"><span class="pre">lambda2</span> <span class="pre">doctor</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/troubleshooting.html">Troubleshooting</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/lambdarobotics/Lambda2-teleoperation-gello/issues/new?title=Issue%20on%20page%20%2Fquickstart/install-jetson.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/quickstart/install-jetson.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Install the Jetson Edge Stack</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-workspace">Runtime workspace</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#from-bare-metal-first-bring-up">From bare metal (first bring-up)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deploy-from-mac">Deploy from Mac</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-time-setup-on-jetson">First-time setup on Jetson</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#git-layout-vs-on-device-layout">Git layout vs on-device layout</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#systemd-services">systemd services</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#verify-services">Verify services</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#site-configuration-on-jetson">Site configuration on Jetson</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="install-the-jetson-edge-stack">
+<h1>Install the Jetson Edge Stack<a class="headerlink" href="#install-the-jetson-edge-stack" title="Link to this heading">#</a></h1>
+<p>The Jetson Thor runs arm control, video streaming, cloud tunnel, chassis forwarding, and optional LeRobot recording.</p>
+<section id="runtime-workspace">
+<h2>Runtime workspace<a class="headerlink" href="#runtime-workspace" title="Link to this heading">#</a></h2>
+<p>On device, the live workspace is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">~/</span><span class="n">Desktop</span><span class="o">/</span><span class="n">lambda2_jetson_control</span><span class="o">/</span>
+</pre></div>
+</div>
+<p>Git sources live under <code class="docutils literal notranslate"><span class="pre">jetson/</span></code> in the repository and are synced via deploy script.</p>
+</section>
+<section id="from-bare-metal-first-bring-up">
+<h2>From bare metal (first bring-up)<a class="headerlink" href="#from-bare-metal-first-bring-up" title="Link to this heading">#</a></h2>
+<p>A fresh Jetson Thor needs this before the deploy script can run:</p>
+<ol class="arabic simple">
+<li><p>Flash JetPack: <code class="docutils literal notranslate"><span class="pre">TODO(JetPack</span> <span class="pre">version</span> <span class="pre">+</span> <span class="pre">flashing</span> <span class="pre">method,</span> <span class="pre">e.g.</span> <span class="pre">NVIDIA</span> <span class="pre">SDK</span> <span class="pre">Manager)</span></code></p></li>
+<li><p>Create the <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> user with sudo: <code class="docutils literal notranslate"><span class="pre">TODO(default</span> <span class="pre">credentials</span> <span class="pre">/</span> <span class="pre">creation</span> <span class="pre">steps)</span></code></p></li>
+<li><p>Install RealSense / D405 dependencies: <code class="docutils literal notranslate"><span class="pre">TODO(librealsense</span> <span class="pre">install</span> <span class="pre">command)</span></code>, then verify cameras with <code class="docutils literal notranslate"><span class="pre">rs-enumerate-devices</span></code></p></li>
+<li><p>Confirm SSH from the Mac works: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">lambda2&#64;&lt;jetson-ip&gt;</span></code></p></li>
+</ol>
+<p>Already a running KILN device? Skip to <a class="reference internal" href="#deploy-from-mac">Deploy from Mac</a>.</p>
+</section>
+<section id="deploy-from-mac">
+<h2>Deploy from Mac<a class="headerlink" href="#deploy-from-mac" title="Link to this heading">#</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>Lambda2-teleoperation-gello
+./jetson/deploy_to_jetson.sh<span class="w"> </span>lambda2
+</pre></div>
+</div>
+</section>
+<section id="first-time-setup-on-jetson">
+<h2>First-time setup on Jetson<a class="headerlink" href="#first-time-setup-on-jetson" title="Link to this heading">#</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh<span class="w"> </span>lambda2@&lt;jetson-ip&gt;
+<span class="nb">cd</span><span class="w"> </span>~/Desktop/lambda2_jetson_control
+
+<span class="c1"># Only when migrating from the legacy teleoperation/ layout — skip on fresh deployments</span>
+bash<span class="w"> </span>services/autostart/migrate_on_jetson.sh
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">TELEOP_TOKEN</span><span class="o">=</span><span class="s1">'&lt;your-token&gt;'</span>
+./services/autostart/install_all.sh
+
+<span class="c1"># Enable user services after reboot (once)</span>
+sudo<span class="w"> </span>loginctl<span class="w"> </span>enable-linger<span class="w"> </span>lambda2
+</pre></div>
+</div>
+</section>
+<section id="git-layout-vs-on-device-layout">
+<h2>Git layout vs on-device layout<a class="headerlink" href="#git-layout-vs-on-device-layout" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>jetson/
+├── deploy_to_jetson.sh
+├── d405_stream/                        # D405 capture (streaming dependency)
+└── lambda2_jetson_control/             # Template synced to Jetson
+    ├── services/
+    │   ├── agents/thor_joint_agent.py
+    │   ├── streaming/scripts/          # RTP + control tunnel
+    │   └── autostart/                  # systemd + install_all.sh
+    └── control/
+        ├── peripherals/chassis/
+        └── teleop/spacemouse/
+</pre></div>
+</div>
+<blockquote>
+<div><p>Large runtime directories such as <code class="docutils literal notranslate"><span class="pre">control/core/</span></code> and <code class="docutils literal notranslate"><span class="pre">sdk/</span></code> are maintained on Jetson and are not fully tracked in Git.</p>
+</div></blockquote>
+</section>
+<section id="systemd-services">
+<h2>systemd services<a class="headerlink" href="#systemd-services" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Unit</p></th>
+<th class="head"><p>Port</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">teleop-stream-api</span></code></p></td>
+<td><p>8099</p></td>
+<td><p>HTTP control plane</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">teleop-control-tunnel</span></code></p></td>
+<td><p>→ relay <code class="docutils literal notranslate"><span class="pre">:9443</span></code></p></td>
+<td><p>Cloud site tunnel</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">teleop-thor-agent</span></code></p></td>
+<td><p>15666</p></td>
+<td><p>Dual-arm JSON agent</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">teleop-rtp</span></code></p></td>
+<td><p>UDP 5600/5602</p></td>
+<td><p>D405 RTP streaming</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">joystick-receiver</span></code></p></td>
+<td><p>9100</p></td>
+<td><p>Chassis TCP listener</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Full listener and unit reference: <a class="reference internal" href="../reference/ports-services.html"><span class="std std-doc">Ports and services</span></a>.</p>
+</section>
+<section id="verify-services">
+<h2>Verify services<a class="headerlink" href="#verify-services" title="Link to this heading">#</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>systemctl<span class="w"> </span>--user<span class="w"> </span>status<span class="w"> </span>teleop-stream-api<span class="w"> </span>teleop-control-tunnel<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>teleop-thor-agent<span class="w"> </span>teleop-rtp<span class="w"> </span>joystick-receiver
+
+ss<span class="w"> </span>-ltn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'8099|15666|9100'</span>
+</pre></div>
+</div>
+</section>
+<section id="site-configuration-on-jetson">
+<h2>Site configuration on Jetson<a class="headerlink" href="#site-configuration-on-jetson" title="Link to this heading">#</a></h2>
+<p>Keep <code class="docutils literal notranslate"><span class="pre">config/site.yaml</span></code> aligned with the Mac copy. After edits:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./config/apply_site_config.sh
+./config/show_site_config.sh
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="../configuration/index.html"><span class="std std-doc">configuration guide</span></a>.</p>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="first-teleop.html"><span class="std std-doc">First teleop checklist</span></a></p></li>
+<li><p><a class="reference internal" href="../architecture/network-topology.html"><span class="std std-doc">Network topology</span></a></p></li>
+<li><p><a class="reference internal" href="../architecture/data-pipeline.html"><span class="std std-doc">Data pipeline</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="install-client.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Install the Mac Client</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="first-teleop.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">First Teleop Checklist</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-workspace">Runtime workspace</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#from-bare-metal-first-bring-up">From bare metal (first bring-up)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deploy-from-mac">Deploy from Mac</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#first-time-setup-on-jetson">First-time setup on Jetson</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#git-layout-vs-on-device-layout">Git layout vs on-device layout</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#systemd-services">systemd services</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#verify-services">Verify services</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#site-configuration-on-jetson">Site configuration on Jetson</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Lambda Robotics
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Lambda Robotics.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
