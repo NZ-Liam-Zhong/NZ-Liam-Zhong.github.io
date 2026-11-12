@@ -187,11 +187,11 @@
   <div class="wrap wide">
     <figure>
       <img src="static/img/fig2_pipeline.jpg" alt="Agentic simulation construction pipeline" width="2000" height="932" loading="lazy">
-      <figcaption>A coding agent turns an egocentric clip and its task text into a scene program, refining it in a live simulation session against renders of the clip and physics checks. The scene is exported to Isaac Sim through our adaptor and must pass physics and task-readiness gates in that independent engine. Failures return to the agent as a written report, which triggers a targeted repair or a fresh rebuild.</figcaption>
+      <figcaption>A coding agent turns an egocentric clip and its task text into a scene program, refining it in a live simulation session against renders of the clip and physics checks. The scene is exported to Isaac Sim through our adaptor and must pass physics and task-readiness gates there; failures return to the agent as a written report, which triggers a targeted repair or a fresh rebuild. Scenes that pass then undergo feasibility verification: the goal state must stay stable at rest, and task completion must be demonstrated by a privileged GaP agent or, failing that, by teleoperation. Scenes that fail are refined by the agent with a human in the loop before entering the benchmark.</figcaption>
     </figure>
   </div>
   <div class="wrap">
-    <div class="cards3">
+    <div class="cards2">
       <div class="card">
         <h3>Scenes as grounded programs</h3>
         <p>Each 20&ndash;90&nbsp;s clip becomes a <code>scene.py</code> plus a task file of success conditions. The agent works in a live session that reloads on every save, compares renders from a camera fitted to the clip against the video, and steps the physics to catch instability, interpenetration and drift.</p>
@@ -201,14 +201,18 @@
         <p>Mechanism primitives (snaps, seated screws, zippers, plugs, buttons) each carry a break force and a state check. Three rules: textures carry only an object's own print, at least one success condition is false as built, and every departure from the clip is written into a report.</p>
       </div>
       <div class="card">
-        <h3>Acceptance independent of the builder</h3>
-        <p>A scene counts only if it holds in an engine it was not built in. In Isaac Sim, rigid bodies must stay within a few millimetres at rest, soft bodies must neither fall through nor fly apart, every mechanism must hold at three times its load, and granular material (MPM) must stay in its container.</p>
+        <h3>Physical acceptance in Isaac Sim</h3>
+        <p>The adaptor exports each scene as a self-contained USD bundle, keeping each deformable's material and turning mechanisms into breakable joints. At rest for 1.5&nbsp;s, rigid bodies must stay within a few millimetres, soft bodies must neither fall through nor fly apart, every mechanism must hold at three times its load, and granular material (MPM) must stay in its container.</p>
+      </div>
+      <div class="card">
+        <h3>Feasibility verification</h3>
+        <p>Every scene must be shown to be solvable. The task objects are placed in their goal state to check reachability and held at rest for 1.5&nbsp;s to check stability; then a privileged agent with full state information uses GaP to complete the task, with teleoperation as the fallback. Scenes that fail either check are refined with a human in the loop and tested again.</p>
       </div>
     </div>
     <div class="kpis">
       <div><b>94.1%</b><span>of attempted scenes accepted</span></div>
       <div><b>65 min</b><span>median build time per scene</span></div>
-      <div><b>~1.3</b><span>GPU-slot hours per scene</span></div>
+      <div><b>~1.3</b><span>GPU-slot hours per scene (vGPU-32GB)</span></div>
       <div><b>23 / 24</b><span>random scenes pass again when re-exported on another machine</span></div>
     </div>
   </div>
@@ -254,7 +258,7 @@
             <tr><td>Long (295)</td><td>0 (0.0%)</td><td>0.5</td><td>0 (0.0%)</td><td>1.4</td></tr>
           </tbody>
         </table>
-        <p class="note">Short, medium and long tasks name 1&ndash;2, 3&ndash;4 and 5+ sub-goals. Both models succeed on 26 scenes, only Astra on 57, only Dream-1 on 6, neither on 911. On the 26 shared successes, Astra averages 7.5&nbsp;min and $2.28 of API cost per task; Dream-1 averages 5.1&nbsp;min and $0.06, 38&times; cheaper.</p>
+        <p class="note">Short, medium and long tasks name 1&ndash;2, 3&ndash;4 and 5+ sub-goals. Both models succeed on 26 scenes, only Astra on 57, only Dream-1 on 6, neither on 911. On the 26 shared successes, Astra averages 8.6&nbsp;min and $2.28 of API cost per task; Dream-1 averages 3.7&nbsp;min and $0.06, 38&times; cheaper.</p>
       </div>
       <div class="chart skill">
         <h4>Scenes completed by skill <small>(% of scenes with that skill)</small></h4>
@@ -273,6 +277,34 @@
         </div>
       </div>
     </div>
+
+    <h3 class="sub">How policies fail</h3>
+    <p class="intro">Failures usually happen at the first step of a task. Every counted trial that did not succeed is assigned one primary failure mode from the voting reviewers' written reasons and the frames they saw. Dream-1 mostly never makes useful contact with the task objects; GPT-6 Astra's failures spread across knocking objects over, leaving mechanisms unoperated, stopping partway and not releasing.</p>
+    <div class="two fail">
+      <div class="chart skill">
+        <h4>Failure modes <small>(% of each model's failed trials)</small></h4>
+        <div class="legend"><span class="d">Dream-1 (968 failed)</span><span class="a">GPT-6 Astra (917 failed)</span></div>
+        <div class="pairs" style="--scale:70">
+          <div class="pair"><span>No contact</span><div><i class="d" style="--p:66.4"></i><b>66%</b></div><div><i class="a" style="--p:35.0"></i><b>35%</b></div></div>
+          <div class="pair"><span>Wrong final pose</span><div><i class="d" style="--p:11.5"></i><b>11%</b></div><div><i class="a" style="--p:12.1"></i><b>12%</b></div></div>
+          <div class="pair"><span>Knocked over</span><div><i class="d" style="--p:5.0"></i><b>5%</b></div><div><i class="a" style="--p:15.0"></i><b>15%</b></div></div>
+          <div class="pair"><span>Mechanism not operated</span><div><i class="d" style="--p:6.3"></i><b>6%</b></div><div><i class="a" style="--p:14.7"></i><b>15%</b></div></div>
+          <div class="pair"><span>Stopped partway</span><div><i class="d" style="--p:3.9"></i><b>4%</b></div><div><i class="a" style="--p:11.0"></i><b>11%</b></div></div>
+          <div class="pair"><span>Not released</span><div><i class="d" style="--p:0.8"></i><b>1%</b></div><div><i class="a" style="--p:7.7"></i><b>8%</b></div></div>
+          <div class="pair"><span>Declined instruction</span><div><i class="d" style="--p:2.9"></i><b>3%</b></div><div><i class="a" style="--p:0"></i><b>0%</b></div></div>
+          <div class="pair"><span>Scorer undecided</span><div><i class="d" style="--p:3.2"></i><b>3%</b></div><div><i class="a" style="--p:4.3"></i><b>4%</b></div></div>
+        </div>
+      </div>
+      <div class="failgrid">
+        <div class="fx"><div class="fp"><img src="static/img/fail/a_start.jpg" alt="" loading="lazy"><img src="static/img/fail/a_final.jpg" alt="" loading="lazy"></div><p><b>No contact.</b> Dream-1: pack pencils into cartons</p></div>
+        <div class="fx"><div class="fp"><img src="static/img/fail/b_start.jpg" alt="" loading="lazy"><img src="static/img/fail/b_final.jpg" alt="" loading="lazy"></div><p><b>Wrong final pose.</b> GPT-6 Astra: bottle upright in bowl</p></div>
+        <div class="fx"><div class="fp"><img src="static/img/fail/c_start.jpg" alt="" loading="lazy"><img src="static/img/fail/c_final.jpg" alt="" loading="lazy"></div><p><b>Not released.</b> GPT-6 Astra: plug adapter into outlet</p></div>
+        <div class="fx"><div class="fp"><img src="static/img/fail/d_start.jpg" alt="" loading="lazy"><img src="static/img/fail/d_final.jpg" alt="" loading="lazy"></div><p><b>Mechanism not operated.</b> GPT-6 Astra: tighten cover bolts</p></div>
+        <div class="fx"><div class="fp"><img src="static/img/fail/e_start.jpg" alt="" loading="lazy"><img src="static/img/fail/e_final.jpg" alt="" loading="lazy"></div><p><b>Knocked over.</b> Dream-1: disassemble tray table</p></div>
+        <div class="fx"><div class="fp"><img src="static/img/fail/f_start.jpg" alt="" loading="lazy"><img src="static/img/fail/f_final.jpg" alt="" loading="lazy"></div><p><b>Stopped partway.</b> Dream-1: six flange parts into bin</p></div>
+      </div>
+    </div>
+    <p class="note">Each example shows the first and final frames the voting reviewers saw for one trial. Gemini Argon 4 assigns the mode; one GPT-6 Astra failure (a violated hand-use constraint) fits none of the modes and is omitted.</p>
 
     <h3 class="sub">50-scene benchmark: six systems, four embodiments</h3>
     <p class="intro">Tasks simplify the source activity while keeping its manipulation requirements; an activity that transfers six eggs, for example, becomes transferring one egg from the sink into the tray. LLM systems act through the Nomad interface; Dream-1, &pi;<sub>0.5</sub> and MolmoAct2 use their own adapters. A completion counts only when simulator predicates pass and visual review confirms the goal.</p>
@@ -348,7 +380,7 @@
           <div><b>0.81</b><span>Pearson <i>r</i>, binary success, both policies pooled</span></div>
           <div><b>0.74</b><span>Pearson <i>r</i>, milestone completion, pooled</span></div>
         </div>
-        <p class="body">Simulation preserves Dream-1's higher aggregate score and tracks it closely (64.7% vs. 69.3%), but understates GPT-6 Astra's (22.0% vs. 49.3%) and does not reproduce per-task scores uniformly. Camera matching is approximate and contact physics remain unqualified for wiping, cabinet manipulation and packing, so these five-task comparisons are descriptive.</p>
+        <p class="body">Simulation preserves Dream-1's higher aggregate score and tracks it closely (64.7% vs. 69.3%), but understates GPT-6 Astra's (22.0% vs. 49.3%) and does not reproduce per-task scores uniformly. Milestones are judged by the operator for real trials and by the agentic voters for simulated ones. These five-task comparisons are descriptive: differing conditions and contact and controller limitations preclude attributing the gaps solely to the policies.</p>
       </div>
       <figure class="tight">
         <img src="static/img/fig5_cabinet.jpg" alt="Cabinet manipulation in the real world and in simulation" width="1100" height="1208" loading="lazy">

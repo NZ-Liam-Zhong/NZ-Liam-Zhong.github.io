@@ -130,6 +130,16 @@ h4 small { font-weight: 500; color: var(--mute); }
 .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 32px; }
 .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 20px 16px; }
 .card p { margin: 0; font-size: 14.5px; color: var(--ink2); }
+.cards2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 32px; }
+.cards2 > * { min-width: 0; }
+
+.failgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.fx { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.fx .fp { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line); }
+.fx .fp img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.fx p { margin: 0; padding: 6px 9px 8px; font-size: 12px; color: var(--ink2); line-height: 1.4; }
+.fx p b { color: var(--ink); }
+.two.fail { grid-template-columns: 1fr 1.15fr; }
 .card .num { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
 .card.c1 .num { color: var(--orange); }
 .card.c2 .num { color: var(--purple); }
@@ -170,7 +180,9 @@ section.alt .kpis > div { background: #fff; }
 .pairs .pair:last-child { border-bottom: 0; }
 .pairs .pair > span { color: var(--ink2); grid-row: span 2; }
 .pairs .pair > div { display: flex; align-items: center; gap: 6px; grid-column: 2; }
-.pairs .pair i { display: block; height: 10px; border-radius: 2px; width: calc(var(--p) / 12 * 100%); min-width: 3px; }
+.pairs .pair i { display: block; height: 10px; border-radius: 2px; width: calc(var(--p) / var(--scale, 12) * 100%); min-width: 3px; }
+.pairs .pair > div { flex-wrap: nowrap; }
+.pairs .pair > div i { flex: none; max-width: calc(100% - 40px); }
 .pairs .pair i.d { background: var(--blue); }
 .pairs .pair i.a { background: var(--orange); }
 .pairs .pair b { font-size: 12px; font-weight: 600; }
@@ -233,7 +245,7 @@ footer { padding: 28px 0 40px; color: var(--mute); font-size: 13px; text-align: 
   .grid6 { grid-template-columns: repeat(3, 1fr); }
   .grid6 > div:nth-child(4) { border-left: 0; }
   .grid6 > div:nth-child(n + 4) { border-top: 1px solid var(--line); }
-  .cards3, .charts, .two { grid-template-columns: 1fr; }
+  .cards3, .cards2, .charts, .two, .two.fail { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .grid { grid-template-columns: repeat(2, 1fr); }
   .topnav .links { display: none; }
