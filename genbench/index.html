@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GenBench-∞: Benchmarking Zero-Shot Embodied Foundation Models</title>
+  <meta name="description" content="GenBench-∞ turns egocentric videos of real human work into 1,000 task-ready simulation scenes for evaluating robot foundation models zero-shot.">
+  <meta property="og:title" content="GenBench-∞: Benchmarking Zero-Shot Embodied Foundation Models">
+  <meta property="og:description" content="1,000 simulation tasks rebuilt from egocentric human video, for evaluating robot foundation models out of the box.">
+  <meta property="og:image" content="static/img/og.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a class="brand" href="#top">GenBench-<span class="inf">∞</span></a>
+    <div class="links">
+      <a href="#overview">Overview</a>
+      <a href="#benchmark">Benchmark</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#results">Results</a>
+      <a href="#sim2real">Sim vs. real</a>
+      <a href="#gallery">Scenes</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="badge">Paper under review &middot; benchmark release in progress</div>
+    <h1>GenBench-<span class="inf">∞</span></h1>
+    <p class="subtitle">Benchmarking Zero-Shot Embodied Foundation Models</p>
+    <p class="lede">1,000 simulation tasks rebuilt from egocentric videos of people doing their real work, for measuring how robot foundation models perform out of the box.</p>
+    <div class="buttons">
+      <span class="btn soon" title="Available after the review period">Paper <em>coming soon</em></span>
+      <span class="btn soon" title="Available after the review period">Code <em>coming soon</em></span>
+      <span class="btn soon" title="Available after the review period">Scenes &amp; assets <em>coming soon</em></span>
+      <a class="btn primary" href="#gallery">Browse scenes</a>
+    </div>
+  </div>
+</header>
+
+<section class="stats">
+  <div class="wrap grid6">
+    <div><b>1,000</b><span>task-ready scenes</span></div>
+    <div><b>23</b><span>task categories</span></div>
+    <div><b>410</b><span>kinds of actions</span></div>
+    <div><b>~28k</b><span>objects, 9 material classes</span></div>
+    <div><b>7,600</b><span>machine-checkable success conditions</span></div>
+    <div><b>4</b><span>embodiments</span></div>
+  </div>
+</section>
+
+<section class="teaser" id="overview">
+  <div class="wrap wide">
+    <figure>
+      <img src="static/img/fig1_teaser.jpg" alt="GenBench-infinity overview: egocentric videos, diverse tasks, multiple embodiments, parallel evaluation" width="2400" height="1560">
+      <figcaption><b>GenBench-∞ brings egocentric human activities into simulation tasks for robot evaluation.</b> Each scene is rebuilt from a real recording of a person at work, carries machine-checkable success conditions, and can be run on four embodiments, from a fixed single arm to wheeled dual-arm robots. Many heterogeneous scenes are evaluated in parallel.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="finding">
+      <div class="k">Key finding</div>
+      <p>Today's frontier systems are far from reliable on real work. On the full 1,000-scene suite, <b>GPT-6 Astra succeeds on 8.3%</b> of scenes and <b>Dream-1 on 3.2%</b>, and almost every success is a short pick-and-place of a single rigid object. Neither model completes any task involving insertion, screwing, opening or closing, disassembly, stacking or folding.</p>
+    </div>
+
+    <h2>Abstract</h2>
+    <p class="abstract">Evaluating zero-shot robot policies requires diverse tasks, explicit embodiment interfaces, and evidence that simulated outcomes are informative about physical execution. We introduce GenBench-∞, a benchmark of an initial 1,000 simulation scenes derived from egocentric videos of human activities, which we will keep extending on this page. An agentic real-to-simulation pipeline builds the interactive scenes with human-in-the-loop checks, and asynchronous execution lets systems with different inference costs be evaluated together. We report three sets of experiments: a separate 50-scene benchmark that compares six systems across four embodiments, with human-referenced timing and deployment-cost analysis under explicit assumptions; the full 1,000-scene suite with Dream-1 and GPT-6 Astra on dual YAM arms; and a sim-to-real study in our lab. Current foundation models are far from reliable: GPT-6 Astra succeeds on 8.3% of the 1,000 scenes and Dream-1 on 3.2%, almost only on short tasks.</p>
+
+    <div class="cards3">
+      <div class="card c1">
+        <div class="num">01</div>
+        <h3>A benchmark grounded in real work</h3>
+        <p>1,000 task instances built from egocentric recordings across six sources, in 23 categories with 7,600 machine-checkable success conditions, for evaluating policies on four embodiments without benchmark-specific adaptation.</p>
+      </div>
+      <div class="card c2">
+        <div class="num">02</div>
+        <h3>An agentic real-to-sim pipeline that scales</h3>
+        <p>A coding agent builds each scene as a program inside a harness of tools, primitives and rules, with independent physics checks and a repair loop. 94.1% of attempted scenes are accepted, at about 1.3 GPU-slot hours each.</p>
+      </div>
+      <div class="card c3">
+        <div class="num">03</div>
+        <h3>Evaluation across embodiments, paired with real trials</h3>
+        <p>Six systems on four embodiments remain far from reliable. On five lab tasks run both in simulation and on real robots, binary task success correlates at <i>r</i>&nbsp;=&nbsp;0.81 between the two.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="benchmark">
+  <div class="wrap">
+    <h2>The benchmark</h2>
+    <p class="intro">Designed benchmarks contain the tasks their authors chose, usually tens to a few hundred of them. Egocentric video lets the task distribution follow what people actually do, including the long tail of unusual objects, tools and steps. Our self-collected recordings come from workers on factory and packaging lines during regular shifts, without scripted instructions; public clips come from Open-AoE, HoloAssist, CaryX and RekaDaily-10k. Of 7,072 indexed segments, 3,717 (306&nbsp;h) passed a written robot-feasibility rubric and a three-view adversarial review. The <b>∞</b> in the name reflects that the benchmark is not fixed: as more video is recorded, the same pipeline turns it into new scenes at about one GPU-hour each.</p>
+
+    <div class="charts">
+      <div class="chart">
+        <h4>Source of the 1,000 scenes</h4>
+        <div class="bars" data-max="459">
+          <div class="bar"><span>Open-AoE</span><i style="--v:459" class="o"></i><b>459</b></div>
+          <div class="bar"><span>CaryX</span><i style="--v:219" class="o"></i><b>219</b></div>
+          <div class="bar"><span>HoloAssist</span><i style="--v:142" class="o"></i><b>142</b></div>
+          <div class="bar"><span>Self-collected (factory lines)</span><i style="--v:140" class="o"></i><b>140</b></div>
+          <div class="bar"><span>RekaDaily</span><i style="--v:29" class="o"></i><b>29</b></div>
+          <div class="bar"><span>Lab, sim-vs-real</span><i style="--v:3" class="o"></i><b>3</b></div>
+          <div class="bar"><span>Untraced</span><i style="--v:8" class="o"></i><b>8</b></div>
+        </div>
+      </div>
+      <div class="chart">
+        <h4>Task category <small>(one per scene)</small></h4>
+        <div class="bars" data-max="193">
+          <div class="bar"><span>Machine tending</span><i style="--v:193" class="p"></i><b>193</b></div>
+          <div class="bar"><span>Snap-fit assembly</span><i style="--v:159" class="p"></i><b>159</b></div>
+          <div class="bar"><span>Packaging &amp; sealing</span><i style="--v:153" class="p"></i><b>153</b></div>
+          <div class="bar"><span>Screwing &amp; fastening</span><i style="--v:123" class="p"></i><b>123</b></div>
+          <div class="bar"><span>Disassembly</span><i style="--v:117" class="p"></i><b>117</b></div>
+          <div class="bar"><span>16 smaller categories</span><i style="--v:77" class="p"></i><b>77</b></div>
+          <div class="bar"><span>Wiping &amp; cleaning</span><i style="--v:73" class="p"></i><b>73</b></div>
+          <div class="bar"><span>Uncategorized</span><i style="--v:66" class="p"></i><b>66</b></div>
+          <div class="bar"><span>Doors, lids, drawers</span><i style="--v:39" class="p"></i><b>39</b></div>
+        </div>
+      </div>
+      <div class="chart">
+        <h4>Manipulation skill <small>(multi-label)</small></h4>
+        <div class="bars" data-max="746">
+          <div class="bar"><span>Pick-and-place</span><i style="--v:746" class="t"></i><b>746</b></div>
+          <div class="bar"><span>Insertion</span><i style="--v:416" class="t"></i><b>416</b></div>
+          <div class="bar"><span>Open / close</span><i style="--v:328" class="t"></i><b>328</b></div>
+          <div class="bar"><span>Stack / sort</span><i style="--v:257" class="t"></i><b>257</b></div>
+          <div class="bar"><span>Disassembly</span><i style="--v:229" class="t"></i><b>229</b></div>
+          <div class="bar"><span>Screw / fasten</span><i style="--v:227" class="t"></i><b>227</b></div>
+          <div class="bar"><span>Press / actuate</span><i style="--v:180" class="t"></i><b>180</b></div>
+          <div class="bar"><span>Wipe / sweep</span><i style="--v:119" class="t"></i><b>119</b></div>
+          <div class="bar"><span>Fold / wrap / tie</span><i style="--v:110" class="t"></i><b>110</b></div>
+          <div class="bar"><span>Scoop / pour</span><i style="--v:10" class="t"></i><b>10</b></div>
+        </div>
+      </div>
+      <div class="chart">
+        <h4>Objects, dexterity and horizon <small>(multi-label)</small></h4>
+        <div class="bars" data-max="485">
+          <div class="bar"><span>Cloth, paper, bags</span><i style="--v:432" class="b"></i><b>432</b></div>
+          <div class="bar"><span>Rigid only</span><i style="--v:405" class="b"></i><b>405</b></div>
+          <div class="bar"><span>Articulated</span><i style="--v:272" class="b"></i><b>272</b></div>
+          <div class="bar"><span>Rope, cable</span><i style="--v:118" class="b"></i><b>118</b></div>
+          <div class="bar"><span>Granular</span><i style="--v:7" class="b"></i><b>7</b></div>
+          <div class="bar gap"><span>Tool use</span><i style="--v:485" class="b2"></i><b>485</b></div>
+          <div class="bar"><span>Two-handed</span><i style="--v:448" class="b2"></i><b>448</b></div>
+          <div class="bar"><span>Small parts</span><i style="--v:389" class="b2"></i><b>389</b></div>
+          <div class="bar gap"><span>1&ndash;2 steps</span><i style="--v:248" class="b3"></i><b>248</b></div>
+          <div class="bar"><span>3&ndash;4 steps</span><i style="--v:457" class="b3"></i><b>457</b></div>
+          <div class="bar"><span>5+ steps</span><i style="--v:295" class="b3"></i><b>295</b></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">Compared with existing manipulation benchmarks</h3>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>Benchmark</th><th>Task source</th><th>Platform</th><th>Bimanual</th><th>Tasks</th><th>Scenes</th><th>Real-world validation</th></tr></thead>
+        <tbody>
+          <tr><td>LIBERO</td><td>Procedural</td><td>MuJoCo</td><td>&ndash;</td><td>130</td><td>N/R</td><td>None</td></tr>
+          <tr><td>BEHAVIOR-1K</td><td>Crowd-ranked activities</td><td>Isaac Sim</td><td>&#10003;</td><td>1,000</td><td>50</td><td>1 task, digital twin</td></tr>
+          <tr><td>RoboCasa365</td><td>LLM-proposed, author-built</td><td>MuJoCo</td><td>&ndash;</td><td>365</td><td>2,500</td><td>None</td></tr>
+          <tr><td>RoboDojo</td><td>Capability-designed</td><td>Isaac Sim</td><td>&#10003;</td><td>42 + 18 real</td><td>N/R</td><td>18 real tasks, unpaired</td></tr>
+          <tr><td>RobotArena∞</td><td>Robot demo videos</td><td>Genesis</td><td>&ndash;</td><td>N/R</td><td>~100</td><td>1 task, 3 policies</td></tr>
+          <tr class="ours"><td>GenBench-∞ (ours)</td><td>Egocentric human video</td><td>Isaac Sim</td><td>&#10003;</td><td>1,000</td><td>1,000</td><td>5 tasks, paired; success <i>r</i> = 0.81</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Counts as reported by each paper; N/R = not reported. The table positions benchmarks by what they measure; it is not a ranking.</p>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <h2>Agentic real-to-sim construction</h2>
+    <p class="intro">Reconstruction recovers appearance, but not the mass, friction, articulation, deformable materials and mechanisms a policy interacts with, and egocentric work video, with a moving head-worn camera and hands occluding the objects, rarely gives a clean view to reconstruct from. Instead, a coding agent models each scene directly as a program, using the clip as a reference rather than as geometry.</p>
+  </div>
+  <div class="wrap wide">
+    <figure>
+      <img src="static/img/fig2_pipeline.jpg" alt="Agentic simulation construction pipeline" width="2000" height="932" loading="lazy">
+      <figcaption>A coding agent turns an egocentric clip and its task text into a scene program, refining it in a live simulation session against renders of the clip and physics checks. The scene is exported to Isaac Sim through our adaptor and must pass physics and task-readiness gates in that independent engine. Failures return to the agent as a written report, which triggers a targeted repair or a fresh rebuild.</figcaption>
+    </figure>
+  </div>
+  <div class="wrap">
+    <div class="cards3">
+      <div class="card">
+        <h3>Scenes as grounded programs</h3>
+        <p>Each 20&ndash;90&nbsp;s clip becomes a <code>scene.py</code> plus a task file of success conditions. The agent works in a live session that reloads on every save, compares renders from a camera fitted to the clip against the video, and steps the physics to catch instability, interpenetration and drift.</p>
+      </div>
+      <div class="card">
+        <h3>Primitives and rules</h3>
+        <p>Mechanism primitives (snaps, seated screws, zippers, plugs, buttons) each carry a break force and a state check. Three rules: textures carry only an object's own print, at least one success condition is false as built, and every departure from the clip is written into a report.</p>
+      </div>
+      <div class="card">
+        <h3>Acceptance independent of the builder</h3>
+        <p>A scene counts only if it holds in an engine it was not built in. In Isaac Sim, rigid bodies must stay within a few millimetres at rest, soft bodies must neither fall through nor fly apart, every mechanism must hold at three times its load, and granular material (MPM) must stay in its container.</p>
+      </div>
+    </div>
+    <div class="kpis">
+      <div><b>94.1%</b><span>of attempted scenes accepted</span></div>
+      <div><b>65 min</b><span>median build time per scene</span></div>
+      <div><b>~1.3</b><span>GPU-slot hours per scene</span></div>
+      <div><b>23 / 24</b><span>random scenes pass again when re-exported on another machine</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2>Evaluation protocol</h2>
+    <div class="cards3">
+      <div class="card">
+        <h3>Zero-shot</h3>
+        <p>No training or fine-tuning on GenBench scenes, demonstrations or outcomes. Policies may have prior general or embodiment-specific training. Because pretraining data is opaque, we do not claim the tasks are unseen, only that the benchmark supplies no data for them.</p>
+      </div>
+      <div class="card">
+        <h3>Asynchronous, parallel execution</h3>
+        <p>Policies issue joint-position and gripper targets at 20&nbsp;Hz; physics keeps running during inference while the last targets are held, so systems with very different inference costs are evaluated together. Heterogeneous scenes share one simulator process per GPU.</p>
+      </div>
+      <div class="card">
+        <h3>Agentic voting and milestones</h3>
+        <p>Three isolated reviewers (geometry, task completion, false positives) judge each trial; success needs at least two complete-success votes. Equally weighted milestones, frozen before execution, give partial credit. Agreement with a human voter: 98% over 150 episodes, Cohen's &kappa; = 0.91.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Results</h2>
+
+    <h3 class="sub">1,000-scene benchmark, dual YAM arms</h3>
+    <p class="intro">Dream-1 and GPT-6 Astra on all 1,000 scenes in Isaac Sim 6.2 with Isaac Lab 3.0, one scored trial per scene and model, capped at 300 simulated seconds.</p>
+    <div class="two">
+      <div class="tablewrap">
+        <table class="tbl num">
+          <thead>
+            <tr><th rowspan="2">Scenes</th><th colspan="2">Dream-1</th><th colspan="2">GPT-6 Astra</th></tr>
+            <tr><th>Success</th><th>Milestone</th><th>Success</th><th>Milestone</th></tr>
+          </thead>
+          <tbody>
+            <tr class="ours"><td>All (1,000)</td><td>32 (3.2%)</td><td>3.8</td><td>83 (8.3%)</td><td>10.0</td></tr>
+            <tr><td>Short (248)</td><td>32 (12.9%)</td><td>13.6</td><td>82 (33.1%)</td><td>35.0</td></tr>
+            <tr><td>Medium (457)</td><td>0 (0.0%)</td><td>0.6</td><td>1 (0.2%)</td><td>2.0</td></tr>
+            <tr><td>Long (295)</td><td>0 (0.0%)</td><td>0.5</td><td>0 (0.0%)</td><td>1.4</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Short, medium and long tasks name 1&ndash;2, 3&ndash;4 and 5+ sub-goals. Both models succeed on 26 scenes, only Astra on 57, only Dream-1 on 6, neither on 911. On the 26 shared successes, Astra averages 7.5&nbsp;min and $2.28 of API cost per task; Dream-1 averages 5.1&nbsp;min and $0.06, 38&times; cheaper.</p>
+      </div>
+      <div class="chart skill">
+        <h4>Scenes completed by skill <small>(% of scenes with that skill)</small></h4>
+        <div class="legend"><span class="d">Dream-1</span><span class="a">GPT-6 Astra</span></div>
+        <div class="pairs" data-max="12">
+          <div class="pair"><span>Pick-and-place (746)</span><div><i class="d" style="--p:4.29"></i><b>32</b></div><div><i class="a" style="--p:10.99"></i><b>82</b></div></div>
+          <div class="pair"><span>Insertion (416)</span><em>none</em></div>
+          <div class="pair"><span>Open / close (328)</span><em>none</em></div>
+          <div class="pair"><span>Stack / sort (257)</span><em>none</em></div>
+          <div class="pair"><span>Disassembly (229)</span><em>none</em></div>
+          <div class="pair"><span>Screw / fasten (227)</span><em>none</em></div>
+          <div class="pair"><span>Press / actuate (180)</span><div><i class="a" style="--p:0.56"></i><b>1</b></div></div>
+          <div class="pair"><span>Wipe / sweep (119)</span><div><i class="a" style="--p:0.84"></i><b>1</b></div></div>
+          <div class="pair"><span>Fold / wrap / tie (110)</span><em>none</em></div>
+          <div class="pair"><span>Scoop / pour (10)</span><em>none</em></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">50-scene benchmark: six systems, four embodiments</h3>
+    <p class="intro">Tasks simplify the source activity while keeping its manipulation requirements; an activity that transfers six eggs, for example, becomes transferring one egg from the sink into the tray. LLM systems act through the Nomad interface; Dream-1, &pi;<sub>0.5</sub> and MolmoAct2 use their own adapters. A completion counts only when simulator predicates pass and visual review confirms the goal.</p>
+    <div class="two">
+      <div class="tablewrap">
+        <table class="tbl num results50">
+          <thead><tr><th>System</th><th>Robot</th><th>Success</th><th></th><th>Time (min)</th></tr></thead>
+          <tbody>
+            <tr><td>GPT-6 Astra</td><td>R1</td><td>10 (20.0%)</td><td><i style="--p:20"></i></td><td>27.7</td></tr>
+            <tr><td>GPT-6 Astra</td><td>R1 Pro</td><td>9 (18.0%)</td><td><i style="--p:18"></i></td><td>41.9</td></tr>
+            <tr><td>GPT-6 Astra</td><td>Panda</td><td>10 (20.0%)</td><td><i style="--p:20"></i></td><td>17.1</td></tr>
+            <tr><td>Gemini Argon 4</td><td>R1</td><td>7 (14.0%)</td><td><i style="--p:14"></i></td><td>15.4</td></tr>
+            <tr><td>Gemini Argon 4</td><td>R1 Pro</td><td>5 (10.0%)</td><td><i style="--p:10"></i></td><td>21.7</td></tr>
+            <tr><td>Gemini Argon 4</td><td>Panda</td><td>7 (14.0%)</td><td><i style="--p:14"></i></td><td>20.5</td></tr>
+            <tr><td>Claude Fable 5.1</td><td>R1</td><td>3 (6.0%)</td><td><i style="--p:6"></i></td><td>35.8</td></tr>
+            <tr><td>Claude Fable 5.1</td><td>R1 Pro</td><td>0 (0.0%)</td><td><i style="--p:0"></i></td><td>&ndash;</td></tr>
+            <tr><td>Claude Fable 5.1</td><td>Panda</td><td>5 (10.0%)</td><td><i style="--p:10"></i></td><td>21.2</td></tr>
+            <tr class="sep"><td>GPT-6 Astra</td><td>YAM</td><td>2 (4.0%)</td><td><i style="--p:4"></i></td><td>6.9</td></tr>
+            <tr><td>Dream-1</td><td>YAM</td><td>7 (14.0%)</td><td><i style="--p:14"></i></td><td>4.8</td></tr>
+            <tr><td>MolmoAct2</td><td>YAM</td><td>2 (4.0%)</td><td><i style="--p:4"></i></td><td>3.2</td></tr>
+            <tr><td>&pi;<sub>0.5</sub></td><td>YAM</td><td>0 (0.0%)</td><td><i style="--p:0"></i></td><td>&ndash;</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Out of 50 tasks per row. Time is the mean elapsed time of the fastest accepted run per task, including inference waiting. Together, the frontier configurations succeed in 56 of 450 cells and cover 15 of the 50 scenes.</p>
+      </div>
+      <div>
+        <figure class="tight">
+          <img src="static/img/fig3_egg.jpg" alt="Human demonstration and robot simulation for egg transfer" width="2000" height="801" loading="lazy">
+          <figcaption>Human demonstration and the corresponding simulation task: the original activity transfers six eggs, the evaluated task transfers one. Here Gemini Argon 4 controls a Galaxea R1 Pro.</figcaption>
+        </figure>
+        <div class="tablewrap">
+          <table class="tbl num">
+            <thead><tr><th>System</th><th>Scenes</th><th>API</th><th>Robot</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>GPT-6 Astra</td><td>14</td><td>$4.66</td><td>$5.46</td><td>$10.12</td></tr>
+              <tr><td>Gemini Argon 4</td><td>11</td><td>$0.95</td><td>$1.95</td><td>$2.90</td></tr>
+              <tr><td>Claude Fable 5.1</td><td>6</td><td>$6.12</td><td>$2.08</td><td>$8.20</td></tr>
+              <tr><td>Dream-1</td><td>7</td><td>$0.18</td><td>$0.097</td><td>$0.28</td></tr>
+              <tr><td>MolmoAct2</td><td>2</td><td>$0.00</td><td>$0.21</td><td>$0.21</td></tr>
+            </tbody>
+          </table>
+          <p class="note">Mean cost per selected successful scene completion. Robot cost allocates purchase price over 5,000 occupied hours; failures, retries, compute, maintenance and supervision are excluded. For reference, a person transfers one egg in about 3.5&nbsp;s, about $0.025 at a fully loaded $26/hour.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="sim2real">
+  <div class="wrap">
+    <h2>Does simulation reflect real execution?</h2>
+    <p class="intro">We recorded five egocentric videos of tasks in our lab, built their scenes with the same pipeline, and ran Dream-1 and GPT-6 Astra on dual YAM arms five times per task, in simulation and on the real robots.</p>
+    <div class="two">
+      <div>
+        <div class="tablewrap">
+          <table class="tbl num">
+            <thead>
+              <tr><th rowspan="2">Task</th><th colspan="2">Dream-1</th><th colspan="2">GPT-6 Astra</th></tr>
+              <tr><th>Real</th><th>Sim</th><th>Real</th><th>Sim</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Cubes into a box</td><td>90.0</td><td>100.0</td><td>70.0</td><td>50.0</td></tr>
+              <tr><td>Banana onto a plate</td><td>100.0</td><td>90.0</td><td>90.0</td><td>20.0</td></tr>
+              <tr><td>Wipe a beam</td><td>60.0</td><td>40.0</td><td>60.0</td><td>13.3</td></tr>
+              <tr><td>Snack into a cabinet</td><td>86.7</td><td>73.3</td><td>26.7</td><td>26.7</td></tr>
+              <tr><td>Pack objects</td><td>10.0</td><td>20.0</td><td>0.0</td><td>0.0</td></tr>
+              <tr class="ours"><td>Mean</td><td>69.3</td><td>64.7</td><td>49.3</td><td>22.0</td></tr>
+            </tbody>
+          </table>
+          <p class="note">Mean task-milestone completion (%) over five trials per model and setting.</p>
+        </div>
+        <div class="kpis small">
+          <div><b>0.81</b><span>Pearson <i>r</i>, binary success, both policies pooled</span></div>
+          <div><b>0.74</b><span>Pearson <i>r</i>, milestone completion, pooled</span></div>
+        </div>
+        <p class="body">Simulation preserves Dream-1's higher aggregate score and tracks it closely (64.7% vs. 69.3%), but understates GPT-6 Astra's (22.0% vs. 49.3%) and does not reproduce per-task scores uniformly. Camera matching is approximate and contact physics remain unqualified for wiping, cabinet manipulation and packing, so these five-task comparisons are descriptive.</p>
+      </div>
+      <figure class="tight">
+        <img src="static/img/fig5_cabinet.jpg" alt="Cabinet manipulation in the real world and in simulation" width="1100" height="1208" loading="lazy">
+        <figcaption>Cabinet manipulation by Dream-1 on the real robots (left) and in the Isaac Sim reconstruction (right): opening the cabinet, placing the snack, closing the door.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="gallery">
+  <div class="wrap">
+    <h2>Scenes</h2>
+    <p class="intro">A sample of benchmark scenes. Each card shows the simulation scene; hover or tap it to see the first frame of the source video it was built from.</p>
+    <div class="filters" id="filters"></div>
+  </div>
+  <div class="wrap wide">
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2>Limitations</h2>
+    <p class="body">Egocentric sources over-represent some activities and mostly show successful human demonstrations. Video does not uniquely determine mass, friction, compliance or occluded geometry, so these are estimates, and simulation validity may not extend beyond the tasks, embodiments and contact regimes we test. Generated success checks can also be wrong in ways the physics gates do not catch.</p>
+    <h2>Citation</h2>
+    <p class="body">A BibTeX entry, the paper, the scenes and the evaluation code will be posted here after the review period.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">GenBench-∞ &middot; 2026</div>
+</footer>
+
+<script src="static/gallery/gallery.js"></script>
+<script src="static/main.js"></script>
+</body>
+</html>
