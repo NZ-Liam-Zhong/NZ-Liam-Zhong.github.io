@@ -61,31 +61,7 @@ img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radiu
 <li><a href="#13-常见问题">13. 常见问题</a></li>
 </ul>
 <h2 id="1-总流程">1. 总流程</h2>
-<pre class="mermaid">flowchart LR
-  subgraph A[&quot;Agent A：看清现场&quot;]
-    survey[&quot;survey&lt;br/&gt;机器人测量工作台&quot;] --&gt; twin[&quot;twin&lt;br/&gt;建一族随机化孪生场景&quot;]
-  end
-  subgraph B[&quot;Agent B：在仿真里迭代&quot;]
-    release[&quot;release&lt;br/&gt;搜索策略图&quot;] --&gt; recoveries[&quot;recoveries&lt;br/&gt;长出恢复子图&quot;]
-  end
-  subgraph C[&quot;Agent C：真机&quot;]
-    real[&quot;real&lt;br/&gt;机器人执行&quot;]
-  end
-  brief([&quot;brief&quot;]) --&gt; survey
-  twin --&gt; task[&quot;task&lt;br/&gt;写目标 goal&quot;]
-  task --&gt; release
-  recoveries --&gt; real
-  real --&gt;|通过| done([&quot;部署，存一个版本包&quot;])
-  real --&gt;|失败| diag{&quot;diagnose&quot;}
-  diag --&gt;|测量值超出 twin 范围| tf[/twin_fixes/]
-  diag --&gt;|twin 也复现失败| rg[/regressions/]
-  diag --&gt;|twin 不复现，知道卡在哪| rs[/recovery_seeds/]
-  diag --&gt;|twin 不复现，还能测更多| sr[/survey_requests/]
-  tf --&gt; twin
-  rg --&gt; release
-  rs --&gt; recoveries
-  sr --&gt; survey
-</pre>
+<p><img alt="六个目标按智能体分组，以及真机失败送回去的四条路" src="assets/viper_loop.zh-CN.png" /></p>
 <table>
 <thead>
 <tr>

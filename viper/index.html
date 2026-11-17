@@ -67,31 +67,7 @@ graph, the same one in simulation and on the robot.</p>
 <li><a href="#13-troubleshooting">13. Troubleshooting</a></li>
 </ul>
 <h2 id="1-the-loop">1. The loop</h2>
-<pre class="mermaid">flowchart LR
-  subgraph A[&quot;Agent A: see the bench&quot;]
-    survey[&quot;survey&lt;br/&gt;the robot measures its bench&quot;] --&gt; twin[&quot;twin&lt;br/&gt;a family of randomised scenes&quot;]
-  end
-  subgraph B[&quot;Agent B: iterate in simulation&quot;]
-    release[&quot;release&lt;br/&gt;search for a graph&quot;] --&gt; recoveries[&quot;recoveries&lt;br/&gt;grow recovery subgraphs&quot;]
-  end
-  subgraph C[&quot;Agent C: the robot&quot;]
-    real[&quot;real&lt;br/&gt;run on the robot&quot;]
-  end
-  brief([&quot;brief&quot;]) --&gt; survey
-  twin --&gt; task[&quot;task&lt;br/&gt;write the goal&quot;]
-  task --&gt; release
-  recoveries --&gt; real
-  real --&gt;|passes| done([&quot;deploy, save a version&quot;])
-  real --&gt;|fails| diag{&quot;diagnose&quot;}
-  diag --&gt;|measured outside the twin| tf[/twin_fixes/]
-  diag --&gt;|the twin fails it too| rg[/regressions/]
-  diag --&gt;|the twin does not, and the robot said where it stopped| rs[/recovery_seeds/]
-  diag --&gt;|the twin does not, and the robot can measure more| sr[/survey_requests/]
-  tf --&gt; twin
-  rg --&gt; release
-  rs --&gt; recoveries
-  sr --&gt; survey
-</pre>
+<p><img alt="The six targets grouped by agent, and the four routes by which a real failure goes back" src="assets/viper_loop.png" /></p>
 <table>
 <thead>
 <tr>
