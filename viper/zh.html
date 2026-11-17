@@ -78,7 +78,7 @@ img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radiu
 <tr>
 <td><code>twin</code></td>
 <td>用 brief 的估计、测量结果和历次修正，建一族随机化场景</td>
-<td>工位自己的 twin 检查</td>
+<td>仿真自己的 twin 检查，以及重建门</td>
 </tr>
 <tr>
 <td><code>task</code></td>
@@ -103,25 +103,204 @@ img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radiu
 </tbody>
 </table>
 <p>每个目标的构建键由它的版本和所有依赖的内容摘要组成。键没变就跳过，变了就重建，下游跟着重建。诊断唯一做的事是往 <code>inputs/</code> 下的某个目录追加一条记录，依赖它的目标因此变旧，下一轮只重建这些。</p>
+<h3 id="孪生自己的回路视角问题还是方法问题">孪生自己的回路：视角问题还是方法问题</h3>
+<p>主动感知重建出孪生；孪生不够准，就继续感知，直到够准，然后才开始 <code>task</code> 和 <code>release</code>。会保存所见的勘察返回 <code>views</code>（每一帧：相机名、画幅、内参 <code>[fx, fy, cx, cy]</code>、OpenCV 轴下的位姿 <code>[x, y, z, qw, qx, qy, qz]</code>，以及每个物体的掩码、深度和在这一帧里读了哪些量）和 <code>readings</code>（每个量的每一次读数：数值、误差、相机、方法）。仿真能 <code>look_twin</code> 的话，就从这些相机渲染孪生，孪生的关卡（<code>viper/stages/look.py</code>）在每个视角里逐个物体比对：</p>
+<table>
+<thead>
+<tr>
+<th>读数</th>
+<th>门槛（默认）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>掩码重叠 IoU</td>
+<td>≥ 0.6</td>
+</tr>
+<tr>
+<td>中心偏移，物体所在深度上的毫米（没有深度时用像素）</td>
+<td>≤ 10 mm（12 px）</td>
+</tr>
+<tr>
+<td>尺寸比，面积比的平方根</td>
+<td>1.15 倍以内</td>
+</tr>
+<tr>
+<td>深度，孪生的中位数减相机的</td>
+<td>≤ 10 mm</td>
+</tr>
+</tbody>
+</table>
+<p>它还检查勘察本身：同一个量从两个视角读出来差得超过两者误差之和的 <code>spread</code>（1）倍、数值落在任务声明的 <code>ranges</code> 之外、机器人（<code>survey_checks</code>）或 brief 声明的检查不过。所有读数写进 <code>targets/twin/&lt;key&gt;/match.json</code> 和比对图 <code>look.svg</code>（每个相机的画面、孪生的渲染、两者的轮廓，以及从这个相机读出的数，对不上的标红）；<code>viper watch</code> 在 <code>look</code> 画面上显示比对图，Vi 每一轮都会说。</p>
+<p>关卡没过，先分清毛病出在哪，再送出去：</p>
+<table>
+<thead>
+<tr>
+<th>原因</th>
+<th>规则</th>
+<th>送到</th>
+<th>上限</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>比对本身定出了数值</td>
+<td>仿真的渲染说出了这个值应该是多少</td>
+<td><code>twin_fixes</code></td>
+<td>回路的总轮数</td>
+</tr>
+<tr>
+<td>方法</td>
+<td>同一个量从两个看得清的视角读出来差得比误差大；或者孪生在每个看得清的视角里都偏向同一边（都大、都小、都近、都远，或者在世界坐标里往同一个方向偏），至少两个视角；或者多看了几个角度，物体的偏差还剩原来的 0.8 以上</td>
+<td><code>perception_fixes</code>：每个量换成机器人声明的、还没试过的下一种方法，写明换掉的是哪个、哪些视角、读数和数字；孪生用勘察存下的画面重新测，机器人不动</td>
+<td><code>method_rounds</code>（2）</td>
+</tr>
+<tr>
+<td>视角</td>
+<td>其余情况：物体太远（不到 64 像素宽）、被画面截掉、视角自己说被挡住或斜着看、看得清的视角不到两个，或者在一些看得清的视角里不对、另一些里又对</td>
+<td><code>survey_requests</code>，每个物体带一条 <code>look</code>：先 <code>closer</code>，再 <code>more</code>，以及在哪些相机里对不上</td>
+<td><code>look_rounds</code>（2）</td>
+</tr>
+</tbody>
+</table>
+<p>一个视角对某个物体来说，视角那一行的规则一条都不成立，就算看得清。不能 <code>remeasure</code> 的机器人遇到方法问题，仍按原来的做法请它再看一次。账本里的 <code>measured</code> 事件记录孪生用的每个量是哪种方法测的，是勘察时测的还是用存下的画面重新测的。</p>
+<p>只从几个视角看，台面总有一部分是不确定的，重建门不要求确定。它的结果按顺序是：</p>
+<table>
+<thead>
+<tr>
+<th>结果</th>
+<th>什么时候</th>
+<th>怎么办</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>送回</td>
+<td>上表的某个原因，且对应输入还有轮数</td>
+<td>用回来的东西重建孪生</td>
+</tr>
+<tr>
+<td>带范围通过</td>
+<td>读数对不上，但按中位数建的孪生在每个相机里都在门槛内；或者没东西可送之后，某个数值还是偏</td>
+<td>每个量变成一个范围：覆盖它的读数和误差、它的中间值、画面反推出的值，再截到任务声明的 <code>ranges</code> 里；数值是 <code>[lo, hi]</code>，类别（颜色）是几个候选。孪生把 <code>{"ranges": ...}</code> 当最后一条修正再建一次，写出 <code>ranges.json</code>，变体覆盖这些范围；账本里的 <code>ranges</code> 事件写明原因</td>
+</tr>
+<tr>
+<td>结构矛盾，不过</td>
+<td>没东西可送之后：孪生少了相机看到的物体、某个值在边界内放不进任何范围，或者声明的检查给出 <code>kind = "structure"</code> 的问题（个数、支撑、顺序）</td>
+<td>重建门不过，回路停下并说明原因</td>
+</tr>
+</tbody>
+</table>
+<p>孪生带着范围（来自勘察、修正或上一次重建门）时，按中间值比对；范围内某个值能消掉的偏差（画面反推出的大小或位置，在门槛内）算范围解释了，不算失败，look 图上写明是哪个范围解释的。</p>
+<p><code>viper/core/ranges.py</code> 是所有孪生共用的表示：<code>spanning</code>、<code>clip</code>、<code>union</code>、<code>contains</code>、<code>nominal</code>，以及 <code>variants(ranges, count, key)</code>：先是中间值那个变体，然后在每个范围里按种子抽，同一个 key 抽出来一样。仿真器用它抽变体（<code>cube_on_pad</code> 已经改用它）；诊断跳过类别范围，因为读数不会落在一组颜色之外。</p>
+<h3 id="评审和场景孪生完整吗">评审和场景：孪生完整吗？</h3>
+<p>度量比对只量任务里的物体，看不出桌子到墙前就到头了、孪生少画了一条手臂、台面上还放着一台笔记本。所以重建门每一轮还从每个真实相机渲染孪生，把相机画面和渲染并排放到页面上（<code>look/&lt;camera&gt;</code>，标着轮次），问视觉语言模型哪里不一样（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/stages/critic.py"><code>viper/stages/critic.py</code></a>）。</p>
+<p>每个相机给评审看的（<code>Pair</code>）：真实画面、孪生的渲染、轮次、孪生里有什么（物体和场景，一行一个），以及度量比对从这个相机读出的数。评审的回答（<code>Critique</code>）里，<code>where</code> 是真实画面里的像素框 <code>[x0, y0, x1, y1]</code> 或点 <code>[x, y]</code>：</p>
+<pre><code class="language-json">{&quot;matches&quot;: false,
+ &quot;differences&quot;: [{&quot;thing&quot;: &quot;wall_back&quot;, &quot;kind&quot;: &quot;backdrop&quot;,
+                  &quot;where&quot;: [0, 0, 640, 260],
+                  &quot;evidence&quot;: &quot;white panels in a grey frame; the twin has none&quot;,
+                  &quot;fix&quot;: {&quot;backdrops&quot;: [{&quot;name&quot;: &quot;wall_back&quot;, &quot;side&quot;: &quot;back&quot;,
+                                         &quot;rgb&quot;: [228, 226, 218]}]}}]}
+</code></pre>
+<p><code>kind</code> 是 <code>missing</code>、<code>extra</code>、<code>pose</code>、<code>size</code>、<code>colour</code>、<code>texture</code> 或 <code>backdrop</code>；<code>fix</code> 是一层场景、<code>{"remove": [名字]}</code>、<code>{"measured": {...}}</code>，画面给不出数值时是一句话。同时问几位评审（Gemini、Astra）时，几位都说到的差异算 <code>confirmed</code>；只有一部分评审说的降级，卡不住关。每条差异按顺序取第一条成立的路，写在页面和日志里：</p>
+<table>
+<thead>
+<tr>
+<th>路</th>
+<th>什么时候</th>
+<th>怎么办</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embodiment</code></td>
+<td>手臂、手腕、夹爪、手指：拍这一帧时机器人的构型是本体感知，随帧记下，几何来自它的模型，所以从来不是感知问题</td>
+<td><code>joints</code>：渲染没用这一帧记下的关节，就告诉孪生（<code>twin_fixes</code>）；<code>calibration</code>：用了，手臂还是落在别处，就把手臂上已知的点（基座、腕部相机、指尖）投进相机，和它们在画面里的位置比，超过 <code>calibration_px</code>（20）就用存下的画面重新测相机或基座（<code>perception_fixes</code>，<code>calibrate</code>）；<code>state</code>：手指张开多少之类，算解释掉。孪生缺的手臂按记下的关节加上。从不卡关</td>
+</tr>
+<tr>
+<td><code>metric</code></td>
+<td>度量比对量的物体的位姿或尺寸</td>
+<td>度量比对说了算，由它自己送</td>
+</tr>
+<tr>
+<td><code>dropped</code></td>
+<td>评审说缺的东西，孪生就在它指的地方画着，或者度量比对看得到</td>
+<td>不处理</td>
+</tr>
+<tr>
+<td><code>explained</code></td>
+<td>孪生带着范围的量的尺寸或颜色</td>
+<td>不处理</td>
+</tr>
+<tr>
+<td><code>twin_fixes</code></td>
+<td>评审给了孪生能直接用的数值，而且用得上：颜色、要删的东西、一整面墙（<code>size</code> 或 <code>pose</code> 得给位置或尺寸）</td>
+<td>直接改仿真：<code>{"scenery": 一层, "source": "critic"}</code></td>
+</tr>
+<tr>
+<td><code>perception_fixes</code></td>
+<td>评审没给这种数值（墙多远、笔记本的框、桩的颜色），而勘察从这个相机存下的画面在这条差异的 <code>where</code> 框里有它</td>
+<td>机器人不动，在存下的 RGB-D 画面里测：<code>{"measure": [{"thing", "group", "camera", "box", "what", "given"}]}</code>，孪生建之前先用 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/frames.py"><code>viper/core/frames.py</code></a> 测（否则用机器人为 <code>scenery</code> 声明的方法）</td>
+</tr>
+<tr>
+<td><code>survey_requests</code></td>
+<td>存下的画面里没有（不在任何视角里、那里没有深度、只给了一个点、或者测过一次还不对），机器人现在能看</td>
+<td>主动感知：机器人再看一次，<code>{"quantities": ["scenery"], "look": {thing: {"how": "scenery", "cameras", "why"}}}</code>，勘察把看到的放进 <code>scenery</code> 返回</td>
+</tr>
+<tr>
+<td><code>needs_look</code></td>
+<td>同上，但机器人现在看不了（回放、没上电）</td>
+<td>列出该拍哪些视角（<code>match.json</code> 的 <code>needs_look</code>）；这一轮等机器人</td>
+</tr>
+<tr>
+<td><code>unrouted</code></td>
+<td>什么都定不了</td>
+<td>列出来</td>
+</tr>
+</tbody>
+</table>
+<p>只有任务碰得到的东西能卡关：任务里的物体、它们放着的支撑面、工作区里的障碍物。场景的外观（墙板、百叶窗、光线）和机器人本体只做提示：记下来，评审给了数值就告诉孪生，从不卡关。孪生重建、再问评审，最多 <code>critic_rounds</code>（2）轮。每位评审都说每个相机一致、度量也过了，重建门才过；轮数用完之后，要再看才能定的卡关差异让孪生等机器人（不算失败），卡关的任务物体缺了或多了按结构不过，其余都过，列出来。</p>
+<p><strong>门里的一轮。</strong> 重建门先比度量、定下度量的结果；机器人有评审的话，再拿孪生渲染过的每个相机去问它们。每个相机的并排图写到 <code>targets/twin/&lt;key&gt;/look/&lt;camera&gt;.critic.svg</code>，也发到页面的 <code>look/&lt;camera&gt;</code> 画面：左边真实画面，右边渲染，标题里是轮次，每条差异按它的路的颜色框出来，下面一行行写着评审、路和情况（<code>arm_right (missing, gemini+astra) -&gt; embodiment/joints: the robot itself; update the sim</code>）。日志里每条差异一行，带原因。送出去的差异每个输入最多合成一条（<code>"source": "critic"</code>，带轮次和它对应的差异）。评审还有轮数（<code>critic_rounds</code>，送过东西的轮才算）、每个输入也还有自己的轮数（看是 <code>look_rounds</code>，测是 <code>method_rounds</code>）时，重建门以 <code>route</code> 不过，孪生的回路把它们追加进去：要看就先重建勘察；孪生建之前先在勘察存下的画面里按框测（<code>scenery_measured.json</code>），把 <code>calibrate</code> 交给机器人的 <code>remeasure</code>；然后再渲染、再问评审。有东西要送时，度量过了也不算过。没东西可送之后，要看才能定的卡关差异让结果变成 <code>waiting</code>：回路立刻停下，不耗轮数，<code>viper run</code> 以 4 退出。<code>match.json</code> 的 <code>critic</code> 记着这一轮：<code>round</code>、<code>critics</code>、<code>matches</code>、每个相机的 <code>critiques</code> 和定好路的 <code>differences</code>（每条带 <code>route</code>、<code>case</code>、<code>because</code>、<code>entry</code>、<code>confirmed</code> 和 <code>blocking</code>）、<code>routes</code>、<code>needs_look</code> 和 <code>remaining</code>。Vi 每一轮按路说一遍，比如"第 2 轮：gemini、astra 把真实画面和孪生渲染并排看，找到 2 处不同：仿真里还缺 arm_right (missing, joints)、wall_back (backdrop)，已加上。重新建孪生，再渲染比一次。"</p>
+<p>假工作台用两轮走遍每条路（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tests/unit_tests/simulation/test_fake.py"><code>tests/unit_tests/simulation/test_fake.py</code></a>）。它的机器人接受 <code>scenery = true</code>（或者叠在工作台上的一层，比如压在左臂下的线盘）和 <code>said</code>：每位评审逐轮说什么，说完之后由假评审自己比两张图（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/fake/scenery.py"><code>simulation/fake/scenery.py</code></a>）。第 1 轮两位评审都说缺后墙，并给了整面墙，直接告诉仿真；都说缺右臂、左臂姿态不对，归 <code>embodiment</code>，按这一帧记下的关节画；都说桌子尺寸不对但没给数，就在存下的 RGB-D 画面里按框测；都指着左臂压住的线盘露出的一圈边，一个点测不出范围，于是让机器人再看一次，勘察读到了它；只有一位说缺笔记本，可孪生就在那里画着，丢掉。孪生重建，第 2 轮两位都说一致。</p>
+<p><strong>场景</strong>是这些修正落脚的地方：孪生场景里的 <code>scenery</code>（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/scenery.py"><code>viper/core/scenery.py</code></a>），单位是米，孪生的世界坐标，z 朝上，颜色是 0-255 的 <code>rgb</code>：</p>
+<pre><code class="language-json">{&quot;support&quot;: {&quot;name&quot;: &quot;table&quot;, &quot;x_m&quot;: [-0.6, 0.6], &quot;y_m&quot;: [-0.3, 0.45], &quot;top_m&quot;: 0.0,
+             &quot;rgb&quot;: [176, 124, 82], &quot;texture&quot;: &quot;table.png&quot;, &quot;texture_m&quot;: [0.3, 0.1]},
+ &quot;backdrops&quot;: [{&quot;name&quot;: &quot;wall_back&quot;, &quot;side&quot;: &quot;back&quot;, &quot;distance_m&quot;: 0.45,
+                &quot;span_m&quot;: [-0.8, 0.8], &quot;z_m&quot;: [0.0, 0.9], &quot;rgb&quot;: [228, 226, 218]}],
+ &quot;arms&quot;: [{&quot;name&quot;: &quot;left&quot;, &quot;joints&quot;: [0.0, 1.2, -0.9, 0.0, 0.3, 0.0], &quot;gripper&quot;: 0.4,
+           &quot;base_m&quot;: [-0.33, -0.25, 0.0], &quot;rgb&quot;: [24, 24, 24]},
+          {&quot;name&quot;: &quot;right&quot;, &quot;joints&quot;: [0.0, 1.2, -0.9, 0.0, 0.3, 0.0], &quot;base_m&quot;: [0.33, -0.25, 0.0],
+           &quot;rgb&quot;: [24, 24, 24]}],
+ &quot;distractors&quot;: [{&quot;name&quot;: &quot;laptop&quot;, &quot;what&quot;: &quot;laptop&quot;, &quot;x_m&quot;: [-0.75, -0.45],
+                  &quot;y_m&quot;: [-0.35, -0.15], &quot;z_m&quot;: [0.0, 0.02], &quot;rgb&quot;: [40, 40, 44]}]}
+</code></pre>
+<p><code>backdrops</code> 站在某一侧（<code>back</code> +y、<code>front</code> -y、<code>right</code> +x、<code>left</code> -x），离原点 <code>distance_m</code>。<code>appearance</code> 记任务物体自己的样子（<code>{"board": {"rgb": [31, 38, 40]}}</code>），<code>hidden</code> 记后端自己会画、但被删掉的名字（比如目标标记）。场景一层层叠：brief 或后端的默认、勘察测到的 <code>scenery</code>、然后每条修正的 <code>{"scenery": 一层}</code>；一层可以改字段、加名字、<code>remove</code> 名字（<code>scenery.of_fixes(base, fixes)</code>）。新东西缺了画它必需的字段（墙的 <code>side</code> 和 <code>distance_m</code>、盒子的 <code>x_m</code>、<code>y_m</code>、<code>z_m</code>），由 <code>Scenery.lacks(layer)</code> 指出来，去测，不去猜。</p>
+<p><strong>在存下的画面里按框测</strong>（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/frames.py"><code>viper/core/frames.py</code></a>）用照片补场景。<code>colour</code> 是框里像素颜色的中位数，边缘去掉。<code>extent</code> 把框里的深度经相机反投到世界坐标：墙取这些点最薄的水平方向定在哪一侧，沿这个方向的中位数定距离，散布定宽和高；盒子（笔记本）取高出它所在平面的点定范围；支撑面取顶面上的点定范围和高度。在 Hanoi 那一帧上，这样测出后墙 0.62 m 远、笔记本在 x -0.42 到 -0.13 m，机器人不用动。</p>
+<p>机器人以 <code>vlm(prompt, images, provider) -&gt; text</code> 和 <code>critics</code>（要问的评审）提供评审（它的 hub 的 <code>vlm.query</code>；密钥留在主机的 env 文件里）；没有 <code>vlm</code> 的机器人不做评审。它随每帧记下每条手臂的关节（<code>view["joints"]</code>），说明现在能不能看（<code>looks_now</code>），也可以说出手臂上已知的点出现在画面哪里（<code>view["points"]</code>）。为了能在画面里测，每个视角留着彩色画面（<code>view["image"]</code>，PNG 或 JPEG；画面是示意图时用 <code>view["rgb"]</code>）、16 位 PNG 的深度，单位毫米（<code>view["depth"]</code>），以及相机的内参和位姿（<code>camera["K"]</code> 和 <code>camera["T"]</code>，相机到世界，x 向右、y 向下、z 向前；或者 <code>intrinsics</code> 和 <code>pose</code>）。会测场景的机器人在勘察的 <code>can</code> 里列出 <code>scenery</code>（在存下的画面上测的方法列在 <code>measures</code> 里），并返回 <code>survey["scenery"]</code>。这些都列在 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/embodiments/README.md"><code>../embodiments/README.md</code></a>。后端在 <code>look_twin</code> 和 <code>see_twin</code> 里画 <code>scenery</code>（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/README.md"><code>../simulation/README.md</code></a>）。</p>
 <h2 id="2-安装">2. 安装</h2>
 <p>需要 Python 3.11 或 3.12，以及 <a href="https://docs.astral.sh/uv/">uv</a>。VIPER 本身只用标准库，仿真器在各自的 Python 环境里运行，VIPER 从不 import 它们。</p>
 <pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER.git
 cd VIPER
 uv venv --python 3.11 &amp;&amp; source .venv/bin/activate
 uv pip install -e &quot;.[test]&quot;
-viper stations
+viper parts
 </code></pre>
-<p><code>viper stations</code> 列出装好的工位：</p>
-<pre><code class="language-text">bullet       real+sim   PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
-fake         real+sim   A toy cube-to-plate world in plain Python, for tests and the demo
-libero       real+sim   LIBERO on MuJoCo: a benchmark task stands in for the robot, its scene is the twin
-rss          real+sim   RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
-sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
+<p>一次运行由几部分拼成，每部分放在它角色对应的目录里：真机在 <code>embodiments/</code>，替真机站位的世界在 <code>benchmarks/</code>，物理后端在 <code>simulation/</code>，任务和为它写图的作者在 <code>tasks/</code>。<code>viper parts</code> 列出装好的部分，以及每份规格的问题：</p>
+<pre><code class="language-text">benchmark   cube_suite     A simulation built from the true bench plays the robot: a Panda puts a cube on a pad
+benchmark   libero         A LIBERO task stands in for the robot: its own start states, judged by its own success test
+benchmark   toy            The toy world stands in for the robot, its arm off by a bias the brief misses
+simulation  fake           A toy cube-to-plate world in plain Python, for tests and the demo
+simulation  mujoco         MuJoCo through robosuite: the twin is a LIBERO task's scene, opened from its task file
+simulation  pybullet       PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
+simulation  robosimstudio  RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
+simulation  sapien         SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
+task        pick_place     Pick a thing up and put it somewhere, from an instruction in words
 </code></pre>
 <table>
 <thead>
 <tr>
-<th>工位</th>
+<th>仿真</th>
 <th>引擎</th>
 <th>还需要什么</th>
 </tr>
@@ -133,12 +312,12 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td>不需要别的；演示和测试用</td>
 </tr>
 <tr>
-<td><code>rss</code></td>
+<td><code>robosimstudio</code></td>
 <td>RoboSimStudio（Newton / MuJoCo-Warp）</td>
 <td>GPU，以及带 GaP 的 RoboSimStudio 检出</td>
 </tr>
 <tr>
-<td><code>bullet</code></td>
+<td><code>pybullet</code></td>
 <td>PyBullet，CPU</td>
 <td><code>pybullet</code>、<code>numpy</code>、GaP</td>
 </tr>
@@ -148,18 +327,18 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td><code>sapien</code>、<code>pybullet_data</code>、<code>numpy</code>、GaP，以及支持 Vulkan 的 GPU</td>
 </tr>
 <tr>
-<td><code>libero</code></td>
-<td>LIBERO（MuJoCo，经 robosuite 1.4）</td>
+<td><code>mujoco</code></td>
+<td>LIBERO 的场景（MuJoCo，经 robosuite 1.4）</td>
 <td>LIBERO 检出、<code>robosuite==1.4.1</code>、MuJoCo、GaP 和 EGL（见第 11 节）</td>
 </tr>
 </tbody>
 </table>
-<p><code>rss</code>、<code>bullet</code>、<code>sapien</code> 摆的是同一个任务（Panda 用相机找方块、放到垫子上），工具名一致，所以一张图能在任意一个上跑，也可以在 A 里搜索、在 B 上执行。它们的"真机"都是替身：用真实场景参数建的同一个仿真器。<code>libero</code> 则让一个公开基准站在真机的位置上：从基准自己的初始状态出发，用基准自己的成功判定打分。</p>
+<p><code>robosimstudio</code>、<code>pybullet</code>、<code>sapien</code> 摆的是同一个世界（Panda 用相机找方块、放到垫子上），工具名一致，所以一张图能在任意一个上跑，也可以在 A 里搜索、在 B 上执行。那里的"真机"是 <code>cube_suite</code> 基准，<code>real = "cube_suite:&lt;仿真&gt;"</code>：用真实场景参数建的同一个仿真器。<code>libero</code> 基准让一个公开基准站在真机的位置上，由 <code>mujoco</code> 来演，从基准自己的初始状态出发，用基准自己的成功判定打分。目前还没有真机随仓库发布；<code>embodiments/README.md</code> 是真机要满足的接口。</p>
 <p>跑测试：</p>
 <pre><code class="language-bash">uv run pytest -q tests
 </code></pre>
 <h2 id="3-离线演示">3. 离线演示</h2>
-<p><code>fake</code> 工位是一个纯 Python 的玩具世界，带一个脚本化的作者。整个闭环不到一秒：</p>
+<p><code>fake</code> 仿真和 <code>toy</code> 基准是一个纯 Python 的玩具世界，带一个脚本化的作者。整个闭环不到一秒：</p>
 <pre><code class="language-bash">viper demo --out runs/demo
 </code></pre>
 <p>日志（节选）：</p>
@@ -179,7 +358,7 @@ INFO building twin
 INFO twin passed its gate tcp_bias_mm=6.509
 INFO task is up to date
 INFO building release
-INFO n0005 from topology is invalid: calls sim.get_object_pose, which not every station provides
+INFO n0005 from topology is invalid: calls sim.get_object_pose, which the robot and the twin do not both provide
 INFO release passed its gate lower_bound=0.8137 n=100 rate=0.89 successes=89
 INFO real passed its gate successes=20 n=20 rate=1
 </code></pre>
@@ -254,12 +433,12 @@ open runs/demo/report/index.html
 <td>换一个场景：只带走策略，作为新运行的搜索起点</td>
 </tr>
 <tr>
-<td><code>viper stations</code></td>
-<td>列出装好的工位</td>
+<td><code>viper parts</code></td>
+<td>列出装好的各部分，以及每份规格的问题</td>
 </tr>
 <tr>
-<td><code>viper hub search --index HUB --station NAME</code></td>
-<td>列出这个工位能用的技能；加 <code>--all</code> 同时列出不能用的及原因</td>
+<td><code>viper hub search --index HUB --part NAME</code></td>
+<td>列出这个仿真能用的技能，加 <code>--real</code> 则是机器人能用的；加 <code>--all</code> 同时列出不能用的及原因</td>
 </tr>
 <tr>
 <td><code>viper hub lock GRAPH --index HUB</code></td>
@@ -298,11 +477,11 @@ viper resume runs/x --watch                   # 同上，从停下的地方接�
 viper watch runs/x                            # 打开任意运行目录的页面，在跑没跑都行
 viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器人的相机
 </code></pre>
-<p><img alt="实时页面：仿真和机器人相机、闭环进度，以及 Vi" src="assets/watch.zh-CN.png" /></p>
+<p><img alt="真实双臂汉诺塔工位上的实时页面：机器人每台相机的画面，旁边是孪生从同一视角渲染的画面，以及 Vi" src="assets/watch.zh-CN.png" /></p>
 <p>页面实时显示：</p>
 <ul>
 <li><strong>仿真</strong>：孪生正在演练，当前这一批实例每个一格，标出成功或失败；</li>
-<li><strong>机器人相机</strong>：工位画的画面、相机的 MJPEG 视频流（<code>--feed camera=URL</code>，或者页面上的“Add a stream URL”），或者这台电脑的摄像头；</li>
+<li><strong>机器人相机</strong>：机器人一侧画的画面、相机的 MJPEG 视频流（<code>--feed camera=URL</code>，或者页面上的“Add a stream URL”），或者这台电脑的摄像头；</li>
 <li><strong>运行到哪了</strong>：六个目标已建好、正在建、过期还是失败，以及关卡读数；运行停在哪个检查点；诊断写下的输入；</li>
 <li><strong>成功率</strong>：每个回合一格，绿色成功、红色失败；来自正在建的目标，或者机器人最近一次运行；</li>
 <li><strong>搜索</strong>：每一轮最好的图在关卡上的成功率和 Wilson 下界，每个试过的编辑是否通过筛选；</li>
@@ -359,7 +538,7 @@ viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器�
 </tr>
 </tbody>
 </table>
-<p><strong>改任务。</strong> 点页面顶部的任务或旁边的铅笔，输入新任务，按「按这个任务跑」；或者对 Vi 说「任务：……」。运行在下一个检查点停下，再用新任务接着跑，和终端里的 <code>viper resume DIR --instruction "……"</code> 一样。survey 不读任务，所以机器人不会重新测量；任务重新写，release 和恢复子图为新任务重新搜索，部署的图变了才会再上真机。工位做不到的任务会停在说明原因的那道门上：在 fake 工位上，「把方块放进碗里」过不了 task 的门（<code>the goal names objects the twin lacks: ['bowl']</code>），「把盘子放到方块上」过不了 release 的裁判自检。</p>
+<p><strong>改任务。</strong> 点页面顶部的任务或旁边的铅笔，输入新任务，按「按这个任务跑」；或者对 Vi 说「任务：……」。运行在下一个检查点停下，再用新任务接着跑，和终端里的 <code>viper resume DIR --instruction "……"</code> 一样。survey 不读任务，所以机器人不会重新测量；任务重新写，release 和恢复子图为新任务重新搜索，部署的图变了才会再上真机。做不到的任务会停在说明原因的那道门上：在 fake 仿真上，「把方块放进碗里」过不了 task 的门（<code>the goal names objects the twin lacks: ['bowl']</code>），「把盘子放到方块上」过不了 release 的裁判自检。</p>
 <p>英文的说法（"how is it going"、"pause"、"go on" 等）同样能用。</p>
 <h3 id="页面和运行在哪里接上">页面和运行在哪里接上</h3>
 <p>页面和运行之间只通过 <code>DIR/live/</code> 下的文件交流：有没有页面，运行都一样跑；页面也可以打开任何运行目录，在跑的、跑完的都行。</p>
@@ -373,8 +552,9 @@ viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器�
 </ol>
 <p>暂停或停下的运行会在 <code>live/now.json</code> 里写明停在哪。运行是页面的子进程，在自己的会话里，日志写在 <code>DIR/live/run.log</code>；在页面的终端按 Ctrl-C，会让运行在下一个检查点停下。运行没有连到自己的目录之前（命令行会连上），检查点什么也不做，所以直接调用各阶段的代码永远不会卡住。</p>
 <h3 id="实时画面">实时画面</h3>
-<p>工位用 <code>live.frame("sim", data, ".svg", **meta)</code> 画一个画面：最新一帧写到 <code>live/feeds/sim.frame</code>，说明写到 <code>live/feeds/sim.json</code>。画画要花时间，所以只有 <code>live.watched()</code> 说最近十秒有页面读过这个运行时，工位才画；没人看的运行什么都不画。页面请求 <code>/feed/sim?after=&lt;时间&gt;</code>，服务器把请求挂着，等到有更新的帧才返回，所以帧一写好就能看到，页面也不用一直轮询图片。</p>
-<p>fake 工位两个画面都画。bullet、SAPIEN 和 RoboSimStudio 工位在各自的 worker 里画渲染图，worker 作为任务跑在本机或者通过 ssh 跑在别的机器上；worker 画的帧一出现就被复制回运行的 <code>live/feeds/</code>。相机画面按页面的优先顺序取：工位画的帧、视频流地址、这台电脑的摄像头；有不止一个来源时，画面上方有个开关可以选。</p>
+<p>仿真或机器人用 <code>live.frame("sim", data, ".svg", **meta)</code> 画一个画面：最新一帧写到 <code>live/feeds/sim.frame</code>，说明写到 <code>live/feeds/sim.json</code>。画画要花时间，所以只有 <code>live.watched()</code> 说最近十秒有页面读过这个运行时才画；没人看的运行什么都不画。页面请求 <code>/feed/sim?after=&lt;时间&gt;</code>，服务器把请求挂着，等到有更新的帧才返回，所以帧一写好就能看到，页面也不用一直轮询图片。</p>
+<p>玩具世界两个画面都画。PyBullet、SAPIEN 和 RoboSimStudio 在各自的 worker 里画渲染图，worker 作为任务跑在本机或者通过 ssh 跑在别的机器上；worker 画的帧一出现就被复制回运行的 <code>live/feeds/</code>。相机画面按页面的优先顺序取：机器人一侧画的帧、视频流地址、这台电脑的摄像头；有不止一个来源时，画面上方有个开关可以选。</p>
+<p>机器人声明的每台相机（它的本体或基准里的 <code>[cameras.&lt;名字&gt;]</code>）在下面各占一行：这台相机看到的，feed <code>camera/&lt;名字&gt;</code>，旁边是孪生从同一位姿、用同一内参渲染出的画面，feed <code>sim/&lt;名字&gt;</code>。发布由 VIPER 负责（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/cameras.py"><code>viper/core/cameras.py</code></a>）：和 VIPER 同进程、能 <code>see(camera)</code> 的机器人，在勘察和真机运行时被询问；能 <code>see_twin(twin, cameras)</code> 的仿真，每建好一个孪生就把它显示出来；作业 worker 里的 bench 在复位后、每次工具调用后和回合结束时被要求 <code>see</code> 每台相机，写到 <code>live/&lt;侧&gt;/&lt;名字&gt;.jpg</code>，由执行器转发。重建门拿孪生对照相机时，把它比的每个视角成对放上去：勘察存下的画面在 <code>camera/&lt;名字&gt;</code>，孪生从同一视角渲染的画面在 <code>sim/&lt;名字&gt;</code>，标着第几轮；一台相机有几个视角时，两边都放最后一个。读不出来的相机直接跳过；有人看永远不会让运行失败。</p>
 <p>页面只监听 127.0.0.1；要看 GPU 机器上的运行，把端口转发过来（<code>ssh -L 8765:127.0.0.1:8765 gpu</code>），在本机打开。</p>
 <p>Vi 默认说英文；<code>--lang zh</code> 或 <code>VIPER_LANG=zh</code> 让她一开始就说中文，页面顶部的语言按钮随时可以切换。想让大模型来回答，就指定一个 OpenAI 兼容接口上的模型：Vi 把运行状态交给它，执行它返回的操作；模型出错时退回规则：</p>
 <pre><code class="language-bash">export VIPER_CHAT_MODEL=gpt-4o-mini
@@ -382,15 +562,26 @@ export VIPER_CHAT_URL=https://api.openai.com/v1   # 默认值
 export VIPER_CHAT_KEY=...                         # 或 OPENAI_API_KEY
 </code></pre>
 <h2 id="6-写一份-brief">6. 写一份 brief</h2>
-<p>brief 是一个 TOML 文件，例子在 <code>stations/&lt;工位&gt;/brief.example.toml</code>。</p>
+<p>brief 是一个 TOML 文件，例子在 <code>benchmarks/*/brief*.toml</code>。</p>
 <pre><code class="language-toml">instruction = &quot;put the cube on the pad&quot;          # 必填：任务
-sim = &quot;rss&quot;                                      # 必填：在哪个工位的仿真器里搜索
-real = &quot;rss&quot;                                     # 必填：在哪个工位的机器人上执行
-models = &quot;stations.cube_on_pad:LibraryAuthor&quot;    # 作者：&quot;fake&quot;，或 &quot;模块:类&quot;
+task = &quot;pick_place&quot;                              # 任务；作者是这个任务为该仿真准备的那个
+sim = &quot;robosimstudio&quot;                            # 必填：在哪个仿真里搜索
+real = &quot;cube_suite:robosimstudio&quot;                # 必填：机器人，一个本体或一个基准
+# embodiment = &quot;panda&quot;                           # 可选：机器人本体，默认取真机一侧的
+# models = &quot;my_pkg.authors:LlmAuthor&quot;            # 可选：用这个作者代替任务自带的
 # goal = &quot;(once ...)&quot;                            # 可选：直接给目标，否则按模板写
 
 [twin.cube]                 # 对场景的估计；诊断会修正它
 size_mm = 50.0
+
+[[stages]]                  # 可选：目标的各个阶段，按先后（见第 10 节）
+name = &quot;grasp&quot;
+holds = &quot;held(cube)&quot;        # 机器人观测到的状态上的谓词
+by = [&quot;pick_sg&quot;]            # 朝这个阶段干活的子图
+[[stages]]
+name = &quot;place&quot;
+holds = [&quot;on(cube, pad)&quot;, &quot;clear(hand, cube)&quot;]
+by = [&quot;place_sg&quot;]
 
 [settings]
 seeds = 4
@@ -470,9 +661,34 @@ size_mm = 26.0
 <td>带扰动的 probe 回合数，0 表示不跑</td>
 </tr>
 <tr>
+<td><code>recovery_held_out</code></td>
+<td>24</td>
+<td>从不用来搜索的扰动回合数，单独报告，0 表示不跑</td>
+</tr>
+<tr>
+<td><code>recovery_floor</code></td>
+<td>0.5</td>
+<td>恢复子图进入 portfolio 所需的 Wilson 下界（在它那个缺口自己的回合上）</td>
+</tr>
+<tr>
 <td><code>real_episodes</code> / <code>real_tau</code></td>
 <td>20 / 0.8</td>
 <td>真机回合数和通过阈值</td>
+</tr>
+<tr>
+<td><code>real_online</code></td>
+<td>0</td>
+<td>真机在线监视器每个回合最多做几次选择，<code>true</code> 为 2；0 表示整张图一次跑完（第 10 节）</td>
+</tr>
+<tr>
+<td><code>look_rounds</code> / <code>method_rounds</code></td>
+<td>2 / 2</td>
+<td>一次构建里，重建门最多让机器人再看几次、最多让孪生换方法重新测几次</td>
+</tr>
+<tr>
+<td><code>critic_rounds</code></td>
+<td>2</td>
+<td>一次构建里，重建门的评审最多送回几轮</td>
 </tr>
 <tr>
 <td><code>seed</code></td>
@@ -515,6 +731,10 @@ size_mm = 26.0
 <td>远端任务目录放哪、跑完是否保留、超时时间</td>
 </tr>
 <tr>
+<td><code>retries</code></td>
+<td>某些实例没交回结果（比如 worker 进程死了）时，再跑几次才算失败（1）</td>
+</tr>
+<tr>
 <td><code>env</code></td>
 <td>worker 的环境变量，原样写入，不做 <code>$VAR</code> 展开</td>
 </tr>
@@ -536,7 +756,21 @@ size_mm = 26.0
 </tr>
 </tbody>
 </table>
-<p><strong>其他表</strong>：<code>[randomize]</code>（<code>variants</code>：twin 随机出几个场景，默认 8；<code>tcp_spread_mm</code>：工具点扰动幅度，默认 1.5）、<code>[disturb]</code>（probe 回合里制造的扰动，默认一半回合在搬运中松手；写一张空表就不扰动）、<code>[hub]</code>（见第 8 节）。</p>
+<p><strong><code>[[stages]]</code></strong> 在作者没有分阶段时给目标分阶段：cube-on-pad 的库作者按上面那样给模板目标分阶段，玩具库的作者也自己分。谓词可以是一个事实（<code>"held(cube)"</code>，在状态的 <code>facts</code> 里，或者状态里值为真的同名键）、一串都要成立的谓词、<code>{"all"|"any": [...]}</code>、<code>{"not": p}</code>、比较 <code>{"lt"|"le"|"gt"|"ge"|"eq"|"ne": [a, b]}</code>（值用 <code>{"get": "cube.2"}</code> 从状态里读），或者 <code>{"near": [a, b], "within": d}</code>（见 <code>viper/engine/staged.py</code>）。</p>
+<p><strong>其他表</strong>：<code>[randomize]</code>（<code>variants</code>：twin 随机出几个场景，默认 8；<code>tcp_spread_mm</code>：工具点扰动幅度，默认 1.5）、<code>[disturb]</code>（probe 回合里制造的扰动，默认一半回合在搬运中松手；写一张空表就不扰动）、<code>[hub]</code>（见第 8 节），以及 <code>[look]</code>：重建门的设置，覆盖在机器人和仿真自带的 <code>look</code> 表之上：</p>
+<pre><code class="language-toml">[look]
+iou = 0.6                       # 每个物体在每个视角里要过的门槛
+offset_mm = 10.0
+size = 1.15
+depth_mm = 10.0
+spread = 1.0                    # 同一个量的两次读数最多差几倍误差
+blocks = true                   # false：只报告比对结果，不因此判孪生失败
+checks = [&quot;my_pkg.checks:rings_fit_the_stack&quot;]
+objects = { peg = { size = 1.3 } }
+ranges = { ring_count = [6, 6] }
+tolerance = { ring_mm = 1.0 }   # 读数自己没带误差时用的误差
+viewing = { near_px = 64, occluded = 0.3, grazing_deg = 60, shrink = 0.8, agree = 0.7 }
+</code></pre>
 <h2 id="7-在-gpu-上跑-robosimstudio">7. 在 GPU 上跑 RoboSimStudio</h2>
 <p><strong>准备 GPU 主机。</strong> 主机上需要一份 RoboSimStudio 检出和它的虚拟环境，环境里装好 GaP（下面以 <code>/root/viper-work/robosimstudio</code> 为例）。VIPER 会把每个任务目录拷过去，在那个环境里运行 <code>worker.py</code>。</p>
 <p><strong>准备控制端。</strong> 在控制端的 <code>~/.ssh/config</code> 里加一个名叫 <code>gpu</code> 的主机，brief 里的 <code>host = "gpu"</code> 指的就是它：</p>
@@ -551,12 +785,12 @@ size_mm = 26.0
   ControlPersist 10m
 </code></pre>
 <p>先确认 <code>ssh gpu true</code> 不需要输入密码就能通过，然后：</p>
-<pre><code class="language-bash">viper run stations/rss/brief.example.toml --out runs/rss
+<pre><code class="language-bash">viper run benchmarks/cube_suite/brief.robosimstudio.toml --out runs/rss
 </code></pre>
 <p>这份 brief 估计方块是 50 mm，而替身机器人上的方块是 26 mm。预期过程如下：第一版发布在 twin 里通过，到机器人上失败；机器人的相机测出方块尺寸，twin 随之重建；第二版发布在机器人上通过。在一块 RTX 4080 SUPER 上大约 10 到 20 分钟。</p>
 <p>跑得久的运行建议放在 <code>tmux</code> 里，关掉终端也不会中断。万一中断了，<code>viper resume runs/rss</code> 会从断点继续。</p>
 <h2 id="8-借用技能库里的技能">8. 借用技能库里的技能</h2>
-<p><a href="https://github.com/runtime-si/RoboSkillHub">RoboSkillHub</a> 是技能目录。<code>stations/rss/brief.hub.toml</code> 让搜索可以借用其中的 <code>verifying-grasps</code>：抓取后把方块抬起一点，在手腕相机里用 SAM3 找方块，确认它跟着手起来了。俯视相机在这时被手挡住，所以 rss 的默认场景带了一个手腕相机。</p>
+<p><a href="https://github.com/runtime-si/RoboSkillHub">RoboSkillHub</a> 是技能目录。<code>benchmarks/cube_suite/brief.hub.toml</code> 让搜索可以借用其中的 <code>verifying-grasps</code>：抓取后把方块抬起一点，在手腕相机里用 SAM3 找方块，确认它跟着手起来了。俯视相机在这时被手挡住，所以 rss 的默认场景带了一个手腕相机。</p>
 <p><strong>准备工作：</strong></p>
 <ol>
 <li><strong>控制端有一份技能库检出</strong>，VIPER 从中读 <code>index.json</code>。brief 写的是 <code>index = "../Runtime_Robo_Skill_Lab"</code>，也就是和 VIPER 放在同一级目录。</li>
@@ -564,11 +798,11 @@ size_mm = 26.0
 <li><strong>SAM3 权重。</strong> <code>facebook/sam3</code> 是受限仓库，需要一个有访问权限的 Hugging Face token。把权重下载到主机的 HF 缓存里，之后离线加载。</li>
 <li><strong>geometry 工具包的环境。</strong> 在主机检出的 <code>tools/geometry</code> 下，环境要事先同步好。</li>
 </ol>
-<p>先看看哪些技能这个工位能用：</p>
-<pre><code class="language-bash">viper hub search --index ../Runtime_Robo_Skill_Lab --station rss \
+<p>先看看哪些技能这个仿真能用：</p>
+<pre><code class="language-bash">viper hub search --index ../Runtime_Robo_Skill_Lab --part robosimstudio \
   --embodiment panda --serves sam3 --serves geometry --stage verify
 </code></pre>
-<pre><code class="language-text">2 of 3 bundles fit station rss
+<pre><code class="language-text">2 of 3 bundles fit robosimstudio
   verifying-grasps     skill  verify   verified,not_held,reached,missed,held,empty,unknown
   verifying-placement  skill  verify   verified,not_placed
 </code></pre>
@@ -591,20 +825,28 @@ UV_NO_SYNC = &quot;1&quot;
 ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 </code></pre>
 <p><code>[real_options]</code> 要写同样的 <code>skills</code> 和 <code>env</code>，因为部署的图在机器人上也要运行这个技能。</p>
-<pre><code class="language-bash">viper run stations/rss/brief.hub.toml --out runs/rss-hub
+<pre><code class="language-bash">viper run benchmarks/cube_suite/brief.hub.toml --out runs/rss-hub
 </code></pre>
 <p>在一块 RTX 4080 SUPER 上约 19 分钟。第一版发布借用了验证器，在机器人 26 mm 的方块上失败；twin 按测得的 26.5 mm 重建；第二版发布仍然是借用验证器的种子，在机器人上 20/20，每次抓取都通过了验证。<code>targets/release/&lt;key&gt;/skills.lock</code> 按内容摘要钉住了 <code>verifying-grasps</code>、<code>sam3</code> 和 <code>geometry</code>。</p>
 <p>关于借用的几点说明：</p>
 <ul>
 <li>种子借用技能的方式，是加一个 <code>skill</code> 字段写着技能名的子图；技能库里的内容从不被修改。</li>
-<li>运行前的检查会拒绝工位跑不了的借用，比如缺工具、或者没有提供它需要的工具包。</li>
+<li>运行前的检查会拒绝仿真跑不了的借用，比如缺工具、或者没有提供它需要的工具包。</li>
 <li>检查点（π0.5、在别处微调的模型等）设计上是一个调用策略服务器的 GaP 节点，由 <code>policies</code> 选项指定。目前 hub 能判断哪个检查点有服务器，<code>policies</code> 也会写进 <code>job.json</code>，但 rss 的 worker 还没把它接到 GaP 上。</li>
 </ul>
+<h3 id="为缺口找技能">为缺口找技能</h3>
+<p>机器人卡住时，<code>recoveries</code> 把失败分成缺口（第 10 节），再逐个问技能库：什么能从这里恢复。排序用技能库自己的 <code>roboskillhub</code> 命令（索引检出里的 <code>.venv/bin/roboskillhub</code>，没有就用 <code>PATH</code> 上的）：</p>
+<pre><code class="language-bash">roboskillhub search &quot;put the cube on the pad&quot; --tier camera_only -k 10 --json \
+  --embodiment panda --stage recover,execute \
+  --failure &quot;place place_sg verify object not on target, object on bench&quot;
+</code></pre>
+<p>查询是任务的指令；阶段是 <code>recover</code> 加上被归因子图的 manifest 里的阶段；失败词是缺口回合失败时所在的阶段、被归因的子图，以及读成文字的缺口事实（<code>!on(?object, ?target)</code> 读作 "object not on target"）。排好的技能里，只留下 <code>viper hub search</code> 也会留下的：用相机就能跑、符合 brief 的本体、需要的工具由仿真和机器人共有、或由提供的工具包给出、并且有一个不带输入的子图。最好的两个作为恢复提供给这个缺口：把技能借成一个子图，后面接上 release 从失败处往下的原有步骤；它们和任务自己的链一起，在这个缺口的回合上打分。用到的都记进 <code>skills.lock</code>。没有 <code>[hub]</code> 表时什么都不搜。<code>recoveries.json</code> 记下每个缺口排出了什么、留下了什么。</p>
 <h2 id="9-运行目录里有什么">9. 运行目录里有什么</h2>
 <pre><code class="language-text">runs/&lt;name&gt;/
   inputs/brief/             brief
   inputs/survey_requests/   诊断要机器人去测的量
   inputs/twin_fixes/        真机测得的修正
+  inputs/perception_fixes/  孪生重新测勘察画面时要换用的方法
   inputs/regressions/       twin 能复现的真机失败；以后每次发布都必须通过
   inputs/recovery_seeds/    twin 不能复现的真机失败卡住的状态
   inputs/seeds/             搜索的额外起点，比如导入的包
@@ -646,14 +888,34 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 <td>部署的图（release 加上恢复子图）</td>
 </tr>
 <tr>
+<td><code>targets/recoveries/&lt;key&gt;/portfolio/</code></td>
+<td>按起始状态索引的恢复子图（第 10 节）</td>
+</tr>
+<tr>
+<td><code>targets/recoveries/&lt;key&gt;/recoveries.json</code></td>
+<td>各个缺口、每个缺口试过的变体、技能库给出的候选，以及留出回合恢复前后的结果</td>
+</tr>
+<tr>
 <td><code>targets/real/&lt;key&gt;/rollouts.json</code></td>
-<td>每个真机回合：成功与否、怪哪个节点、观测值、起止状态</td>
+<td>每个真机回合：成功与否、怪哪个节点、观测值、起止状态；在线跑时还有监视器的每次决定</td>
+</tr>
+<tr>
+<td><code>targets/real/&lt;key&gt;/deployed.json</code>、<code>online.json</code></td>
+<td>机器人跑的是哪次构建、哪张图、哪个 portfolio；在线跑时，监视器看到了什么、选了什么（第 10 节）</td>
+</tr>
+<tr>
+<td><code>targets/twin/&lt;key&gt;/match.json</code>、<code>look.svg</code></td>
+<td>重建门逐物体、逐相机的读数，以及比对图</td>
+</tr>
+<tr>
+<td><code>targets/twin/&lt;key&gt;/measured.json</code></td>
+<td>换方法后用勘察画面重新测出来的结果（有 perception fix 时才有）</td>
 </tr>
 </tbody>
 </table>
 <h2 id="10-真机失败之后诊断的四条路">10. 真机失败之后：诊断的四条路</h2>
 <p>真机失败，说明下面两种情况至少有一种：要么 twin 和机器人不一样，要么策略在某个情况下没练到。不同的原因要在不同的阶段修，全部重来既慢，又学不到东西。诊断（<code>viper/stages/diagnose.py</code>）依次问几个问题，把每个失败送到能修它的地方。</p>
-<p><img alt="诊断依次问四个问题，把每个失败送到 twin_fixes、regressions、recovery_seeds 或 survey_requests" src="assets/viper_diagnose.zh-CN.png" /></p>
+<p><img alt="诊断先逐阶段比较分阶段的目标，再依次问四个问题，把每个失败送到 twin_fixes、regressions、recovery_seeds 或 survey_requests" src="assets/viper_diagnose.zh-CN.png" /></p>
 <h3 id="twin_fixestwin-的数值错了">twin_fixes：twin 的数值错了</h3>
 <p><strong>条件。</strong> 机器人每个回合都会记录它测到的量（<code>observations</code>），比如相机读出的方块尺寸、深度噪声、工具点偏差。twin 对每个量都有一个随机化范围（<code>twin/&lt;key&gt;/support.json</code>）。如果所有回合读数的中位数落在这个范围之外，就说明 twin 本身错了。</p>
 <p><strong>写下什么。</strong> 测量值，以及读数的离散度（<code>doubt</code>）。演示里那条：</p>
@@ -673,17 +935,93 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 <pre><code class="language-json">{&quot;blame&quot;: &quot;place_sg/verify&quot;, &quot;instance&quot;: &quot;real/1&quot;,
  &quot;state&quot;: {&quot;arm&quot;: [...], &quot;cube&quot;: [0.02579, -0.09174, 0.01299, 1.55334], &quot;fingers&quot;: 0.04, &quot;grip&quot;: 0.04}}
 </code></pre>
-<p><strong>接下来重建什么。</strong> 只重建 <code>recoveries</code> 和 <code>real</code>，<code>release</code> 保留。<code>recoveries</code> 从这些状态（以及它们的扰动副本）出发，搜一条恢复链：先把方块重新抓起来，再放一次。然后把它接到放置的失败出口上。没出错的回合走的仍是原图。</p>
+<p><strong>接下来重建什么。</strong> 只重建 <code>recoveries</code> 和 <code>real</code>，<code>release</code> 保留。<code>recoveries</code> 先按卡住时观测到的事实把这些状态分成缺口（见下文），再从这些状态（以及它们的扰动副本）出发，搜一条恢复链：先把方块重新抓起来，再放一次。然后把它接到放置的失败出口上。没出错的回合走的仍是原图。</p>
 <p><strong>例子。</strong> <code>slip_reactive</code> 里，twin 不制造打滑，所以只有机器人能发现。第一次真机 12/20，8 个卡住的状态成为恢复起点，第二次 20/20。</p>
 <h3 id="survey_requeststwin-不复现让机器人去测还没测的量">survey_requests：twin 不复现，让机器人去测还没测的量</h3>
 <p><strong>条件。</strong> 同样是 twin 不复现的失败。有些量要让机械臂动起来才能测，比如工具点偏差：手伸到几个点，用相机看它实际到了哪里。所以 <code>survey</code> 平时不测这类量，只有被要求时才测。如果机器人能测、又还没测过，就提出要求。</p>
 <p><strong>写下什么。</strong> 要测的量，比如 <code>{"quantities": ["tcp_bias_mm"], "real": "..."}</code>。</p>
 <p><strong>接下来重建什么。</strong> 先是 <code>survey</code>：机器人去测。然后是 <code>twin</code>：按测量结果重建。之后 <code>task</code>、<code>release</code> 等依次跟上。</p>
 <p><strong>例子。</strong> 基准场景 <code>bias</code> 里，工具点在 y 方向偏了 35 mm，相机看不出来。第一次真机 0/20，twin 重放 8 个失败一个都没复现，于是要求测 <code>tcp_bias_mm</code>。三次伸手测出 33.2 mm，twin 带上这个偏差重建，作者让每个规划节点反向瞄准 33.2 mm，第二次真机 20/20。同一轮里，这些失败也作为 recovery_seeds 记了下来。<code>slip_reactive</code> 里同样的请求测出的是 0，相当于排除了一个可能，闭环接着靠恢复子图解决。</p>
-<h3 id="什么时候停下">什么时候停下</h3>
-<p>下面两种情况，闭环会停下，并在 <code>ledger.jsonl</code> 的 <code>stopped</code> 记录里写明原因（<code>viper show</code> 的报告也会显示；<code>viper status</code> 显示的是最后那道失败的关卡）：</p>
+<h3 id="逐阶段sgk-和-execution">逐阶段：S、G、K 和 execution</h3>
+<p>分阶段的目标（第 6 节）说明每个回合走到了哪里。机器人或仿真报告它在图的每个顶层节点之后、以及结束时观测到的状态（rollout 的 <code>checkpoints</code>）；孪生的关卡回合和真机回合都在这些状态上评判：某个阶段在它的谓词第一次成立、且不早于前一个阶段的那个检查点算达到，最后一个阶段到结束时还必须成立。哪一侧什么都没报告时，失败的回合按它被归因的子图和各阶段的 <code>by</code> 定位。rollout 记下 <code>reached</code>（按顺序达到的阶段）和 <code>failed_stage</code>。</p>
+<p>诊断在送路线之前，先逐阶段比较真机和已部署那版放行的孪生关卡回合：在达到前一个阶段的回合里，有多少达到这一个，真机 <code>a1/n1</code> 对孪生 <code>a2/n2</code>，用单侧两比例检验（<code>viper.core.stats.two_prop_p</code>）。真机失败过的每个阶段得到一个结论（<code>viper/stages/findings.py</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>结论</th>
+<th>条件</th>
+<th>对路线的影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S</strong></td>
+<td>真机达到这个阶段的比例明显低于孪生，p &lt; 0.05：孪生表现不出真机在这里遇到的情况</td>
+<td>有测量量能解释就修孪生；否则让机器人去勘察它能测的量，即使重放复现了这些失败</td>
+</tr>
+<tr>
+<td><strong>G</strong></td>
+<td>两边一样会失败，并且有可调的输入（<code>params.json</code>）作用在它失败的子图上</td>
+<td>它的失败照常重放，变成回归实例</td>
+</tr>
+<tr>
+<td><strong>K</strong></td>
+<td>两边一样会失败，却没有可调的输入作用在它上面：调参补不上的技能缺口</td>
+<td>它的失败不重放，直接从卡住的地方送进 <code>recovery_seeds</code>；账本记一条 <code>skill_gap</code>，列出技能库里这个仿真能用的恢复技能</td>
+</tr>
+<tr>
+<td><strong>execution</strong></td>
+<td>机器人没把回合跑完：命令被拒、相机没出帧、worker 崩了（rollout 的 <code>fault</code>）</td>
+<td>不送任何路线：它们说明不了策略的好坏，也不计入任何统计</td>
+</tr>
+</tbody>
+</table>
+<p>每条路线都在值（<code>"stage"</code>、<code>"finding"</code>）和理由里带上它那个回合失败阶段的结论；<code>ledger.jsonl</code> 的 <code>stages</code> 记录存着整张表，报告和实时页面的「诊断」标签页都会显示。演示里，抓取是 S，真机 13/20 对孪生 95/100，p &lt; 0.0001，排在修孪生的路线后面：</p>
+<pre><code class="language-text">INFO stage by stage: grasp: S, robot 13/20, twin 95/100, p=0.0000
+</code></pre>
+<h3 id="缺口manifest-和-portfolio">缺口、manifest 和 portfolio</h3>
+<p>恢复子图是针对<strong>缺口</strong>搜的：失败回合观测到、而成功回合从没观测到的东西。仿真的检查点是一组事实，如 <code>held(cube)</code>、<code>on(cube, pad)</code>、<code>clear(hand, cube)</code>；任务的 <code>roles</code>（在 <code>task.json</code> 里）说明每个物体在任务里扮演什么，于是 <code>held(cube)</code> 读作 <code>held(?object)</code>，不管任务指的是哪个物体，找到的都是同一个缺口：</p>
+<pre><code class="language-json">{&quot;roles&quot;: {&quot;cube&quot;: &quot;object&quot;, &quot;pad&quot;: &quot;target&quot;}}
+</code></pre>
+<p>在每个检查点，回合可能观测到的每个事实要么成立、要么不成立（<code>!held(?object)</code>）。失败回合的缺口，是它第一次观测到「同一检查点上没有任何成功回合观测到过的事实」的那个检查点；新事实相同的失败归为同一个缺口。和成功回合处处一样的失败记为 <code>unexplained</code>，不为它搜恢复。<code>slip</code> 里，twin 制造的打滑分成两个缺口：方块在送往垫子的路上掉了，以及方块在抓取结束前就掉了：</p>
+<pre><code class="language-text">INFO gap !on(?object, ?target)+on(?object, bench): 13 failed runs, first seen after place
+INFO gap !held(?object)+clear(hand, ?object)+on(?object, bench): 2 failed runs, first seen after pick
+</code></pre>
+<p><strong>Manifest</strong> 说明每个子图需要什么、做到什么，写在图的 <code>workflow.json</code> 旁边的 <code>manifests.json</code> 里，由任务的作者提供。方块任务的：</p>
+<pre><code class="language-json">{
+  &quot;pick_sg&quot;: {&quot;needs&quot;: [&quot;!held(?object)&quot;], &quot;gives&quot;: [&quot;held(?object)&quot;],
+              &quot;clears&quot;: [&quot;on(?object, bench)&quot;, &quot;on(?object, ?target)&quot;], &quot;stage&quot;: &quot;execute&quot;},
+  &quot;place_sg&quot;: {&quot;needs&quot;: [&quot;held(?object)&quot;], &quot;gives&quot;: [&quot;on(?object, ?target)&quot;],
+               &quot;clears&quot;: [&quot;held(?object)&quot;], &quot;stage&quot;: &quot;execute&quot;}
+}
+</code></pre>
+<p>没写 manifest 的子图，需要的是它的输入已知，做到的是它的输出已知。从缺口的状态出发，在 manifest 上搜最短的链（最多 <code>depth</code> 个子图），把缺口的事实消掉，再找链可以交还的、图里更靠后的节点：链的结果满足它的 manifest，并且从它出发仍能达到目标。如果链要交还的节点正是失败的那个、或者会走回它，就改为把直到结束的节点都复制进来，恢复因此不会绕圈。方块掉了的情况下，计划是 <code>pick_sg</code>；它本该交还给失败的 <code>place</code>，所以链变成 <code>pick_sg &gt; place_sg</code>，两者都是副本，直接结束任务。没有 manifest 时，链就是 release 尾部的副本，和以前一样：</p>
+<pre><code class="language-text">INFO variant at place: pick_sg &gt; place_sg then done (manifest, splice): 16/16, lower 0.81
+INFO variant at place: place_sg then done (splice): 0/16, lower 0.00
+</code></pre>
+<p>brief 里有 <code>[hub]</code> 表时，每个缺口还会去技能库里搜（第 8 节）。任务自己的链、技能库的技能和 release 的尾部，都在这个缺口自己的回合上打分；搜索从最好的那个开始，最后整张图重新过一次关卡。</p>
+<p><strong>Portfolio。</strong> 每个缺口上表现最好、Wilson 下界高于 <code>recovery_floor</code> 的变体会被保留，按缺口的事实索引：在 <code>targets/recoveries/&lt;key&gt;/portfolio/</code> 里，<code>portfolio.json</code> 列出每一条的守卫（缺口的事实）、从哪里开始（<code>at</code>）、链、交还给谁（<code>back</code>）、来源（<code>manifest</code>、<code>hub:&lt;技能&gt;</code>、<code>splice</code>；几个来源给出同一张图时用 <code>+</code> 连起来）和它的数字；每条还有一个目录，放一张从恢复的第一个节点进入的图。条目的 id 是守卫、图和交还节点的摘要，条目变了，portfolio 的版本号就加一。<code>viper.policy.portfolio.load(...).lookup(facts)</code> 找出守卫在某个状态下成立的恢复，最好的排在前面。</p>
+<p><code>recovery_held_out</code> 个扰动回合从不用来搜索：它们先跑 release，再跑部署的图，结果和搜索见过的 probe 分开报告。<code>slip</code> 里，24 个留出回合从 16 个成功变成 21 个（剩下的是抓取结束前就掉了的方块，那个缺口只有 2 个回合，不到 <code>recovery_least</code>）；LIBERO 的 <code>alphabet_soup</code>（第 11 节）里，缺口是放置之后的 <code>!in(?object, ?target)</code>，恢复链重新看、抓、放，从 12 个变成 24 个。</p>
+<h3 id="在线同一个回合里就恢复或接着跑">在线：同一个回合里就恢复或接着跑</h3>
+<p>上面这些都是在两次构建之间学习：失败的回合被诊断，下一次构建做得更好。在 brief 的 <code>[settings]</code> 里设 <code>real_online</code>（<code>true</code> 表示每个回合最多选 2 次，也可以写一个数；默认关闭），机器人在回合内也会应对。它把部署的图按顶层节点一个一个地跑（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/jobs/online.py"><code>viper/jobs/online.py</code></a>）：GaP 不能在工作流中途暂停，所以每个节点是一次 <code>gap.execute</code>，用的是这个回合自己的 connector，并带上前面节点的输出。两个节点之间，监视器按任务的角色读机器人的事实，遇到下面的<strong>触发</strong>就不再按图自己的路走：</p>
 <ul>
-<li>twin 一个失败都没复现，失败回合又没有报告卡住的状态，机器人也没有可测的了。这说明差异出在没人能测的东西上。</li>
+<li><strong>exit</strong>：节点结束在图会送往失败终点的出口上，或者抛了异常而无处可去；</li>
+<li><strong>needs</strong>：下一个节点的 manifest 需要的条件不成立，比如方块在送往 <code>place</code> 的路上从手里掉了。</li>
+</ul>
+<p>监视器接着按「节点 + 事实」查这个情况，取第一个成立的选择：</p>
+<ul>
+<li><strong>finish</strong>：目标的事实（每个成功的关卡回合结束时都成立的那些）已经成立，直接去成功终点；</li>
+<li><strong>recover</strong>：portfolio 里守卫成立、且按 manifest 推演其链能到达目标的条目，验证得最好的优先；从它的图的第一个节点开始跑；</li>
+<li><strong>resume</strong>：release 名义路径上的某个节点，按 manifest 推演从它跑完能到达目标，剩下步数最少的优先。触发之前的节点输出一律当作未知，所以需要知道方块在哪的 pick 会从它前面的 look 开始接着跑。</li>
+</ul>
+<p>后面的节点会检验这个选择：需要的条件不成立的节点会再次触发。同一个情况下同一个选择不会做两次，每个回合最多做 <code>real_online</code> 次选择，用完之后图按自己的路走。有分叉的图，或者顶层有子图和终点以外节点的图，整张一次跑完，回合里写明原因（<code>online_refused</code>）。每个节点的 GaP 轨迹单独保存，再合并成这个回合的一个 <code>dag_trace.json</code>，归因照旧读它。</p>
+<p>每次触发都是一个<strong>决定</strong>，记在 <code>rollouts.json</code> 中该回合的 <code>online</code> 里：在哪里遇到、监视器看到了什么、事实、选了什么、结果如何，以及遇到时的世界状态，以后可以从那个状态出发比较不同的选择。旁边的 <code>online.json</code> 统计遇到触发的回合数、其中仍然成功的回合数，以及最常见的所见和所选；报告列出每个决定，Vi 会说监视器看到了什么、选了什么。每次真机运行，无论是否在线，都会写 <code>deployed.json</code>，即发布索引：机器人跑的是哪次构建、哪张图，以及 portfolio 的版本和摘要。</p>
+<p>方块套件的 <code>slip_online</code> 就是在线运行的 <code>slip_reactive</code>：前 20 个回合里有 7 个在送往 <code>place</code> 的路上掉了方块，每个都从方块所在的位置在 <code>pick</code> 接着跑，第一版 release 就通过了 20 个里的 20 个。离线时，同一台机器人先通过 20 个里的 13 个，第二版 release 带上从它们停下的状态搜出的恢复，才通过 20 个：在线省下了这 7 个回合和一轮。LIBERO 的 <code>alphabet_soup_slip_online</code>（第 11 节）里，前 25 个回合有 10 个在搬运中掉了罐子，每个都从抓取前的 look 接着跑，第一版 release 通过了 25 个里的 25 个，留出的 25 个也全部通过，其中也有 10 个是接着跑救回来的；离线时前 25 个只通过了 15 个。选择修不了每次都会失败的东西：<code>bias</code> 在线运行时，20 个回合都在 <code>pick</code> 接着跑，在同一个情况下又没抓到，走到失败终点；是诊断在两次构建之间要求的测量让它通过 20 个里的 20 个。release 已经带着针对打滑的恢复时（比如 <code>slip</code>），打滑由图自己接住，不会触发。</p>
+<h3 id="什么时候停下">什么时候停下</h3>
+<p>下面几种情况，闭环会停下，并在 <code>ledger.jsonl</code> 的 <code>stopped</code> 记录里写明原因（<code>viper show</code> 的报告也会显示；<code>viper status</code> 显示的是最后那道失败的关卡）：</p>
+<ul>
+<li>失败的回合全是执行故障：要修的是机器人，不是策略。</li>
+<li>twin 一个失败都没复现，失败回合又没有报告卡住的状态，没有哪个阶段是技能缺口，机器人也没有可测的了。这说明差异出在没人能测的东西上。</li>
 <li>所有失败都已经被路由过，这一轮没有新东西可送。</li>
 </ul>
 <p><strong>例子。</strong> <code>bias_blind</code> 和 <code>bias</code> 一样偏 35 mm，但机器人不能伸手测量。恢复子图从卡住的状态重新抓取，同样的偏差还在，照样抓空。三轮之后，诊断没有新东西可送，停下：<code>real success 0.00 is below 0.8; the diagnosis has nothing new to route</code>。</p>
@@ -725,14 +1063,14 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 </tbody>
 </table>
 <h2 id="11-基准套件">11. 基准套件</h2>
-<p><code>benchmarks/suite.toml</code> 里每个场景对应 twin 和机器人之间的一种差异，并且各有一个关掉某项能力的对照。</p>
+<p><code>benchmarks/suites/cube_suite.toml</code> 里每个场景对应 twin 和机器人之间的一种差异，并且各有一个关掉某项能力的对照。</p>
 <pre><code class="language-bash">cp benchmarks/host.example.toml benchmarks/host.toml    # 改成你的主机
 python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
-<p>八个场景依次跑，约 50 分钟；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#基准测试">README</a>。</p>
+<p>九个场景依次跑，约一小时；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#基准测试">README</a>。</p>
 <h3 id="把-libero-object-当作真机">把 LIBERO-Object 当作真机</h3>
-<p><a href="https://github.com/Lifelong-Robot-Learning/LIBERO">LIBERO</a> 为每个任务提供 50 个初始状态和一个成功判定。<code>libero</code> 工位让一个任务站在真机的位置上：<code>real</code> 从基准自己的初始状态出发执行策略，每个 episode 都由 LIBERO 自己的判定打分。twin 是同一个任务的场景，但物体摆放由 LIBERO 重新采样，所以搜索从来见不到真机打分用的初始状态。两边都不直接把物体位姿交给策略：策略读取相机的深度图和仿真器的逐像素标签（代替检测器），自己从中找出每个物体，手到了物体上方后再用腕部相机看一次。孪生的扰动探针会让夹爪在搬运中松手，所以每个任务在上真机之前也会先搜一段恢复子图。</p>
+<p><a href="https://github.com/Lifelong-Robot-Learning/LIBERO">LIBERO</a> 为每个任务提供 50 个初始状态和一个成功判定。<code>libero</code> 基准让一个任务站在真机的位置上：<code>real</code> 从基准自己的初始状态出发执行策略，每个 episode 都由 LIBERO 自己的判定打分。twin 是同一个任务的场景，但物体摆放由 LIBERO 重新采样，所以搜索从来见不到真机打分用的初始状态。两边都不直接把物体位姿交给策略：策略读取相机的深度图和仿真器的逐像素标签（代替检测器），自己从中找出每个物体，手到了物体上方后再用腕部相机看一次。这些标签是 LIBERO 的真值分割，孪生也是直接从任务自己的 BDDL 文件打开的，而不是根据机器人相机看到的画面重建；只靠 RGB 感知、并重建孪生的模式正在做。孪生的扰动探针会让夹爪在搬运中松手，所以每个任务在上真机之前也会先搜一段恢复子图。</p>
 <p>worker 需要 GPU 主机上一个独立的 Python，装好 LIBERO、robosuite 1.4.1、MuJoCo 和 GaP：</p>
 <pre><code class="language-bash">git clone --depth 1 https://github.com/Lifelong-Robot-Learning/LIBERO.git
 uv venv .venv -p 3.11
@@ -751,11 +1089,11 @@ assets: &lt;LIBERO&gt;/libero/libero/assets
 </code></pre>
 <p>如果 <code>import libero.libero</code> 仍然失败，在该环境的 <code>site-packages</code> 里放一个 <code>.pth</code> 文件，写上检出目录的路径。然后在本机：</p>
 <pre><code class="language-bash">cp benchmarks/host.libero.example.toml benchmarks/host.libero.toml   # 主机和它的 Python
-python benchmarks/run.py --suite benchmarks/libero.toml --out runs/libero \
+python benchmarks/run.py --suite benchmarks/suites/libero.toml --out runs/libero \
     --host benchmarks/host.libero.toml
 cat runs/libero/results.md
 </code></pre>
-<p>LIBERO-Object 的十个任务各跑一遍完整回路，真机用初始状态 0 到 24。回路结束后，部署的策略再跑初始状态 25 到 49，这些状态任何一次构建都没见过：这就是留出集成绩。另外两个场景让基准和孪生不一样：<code>alphabet_soup_slip</code> 在真机 40% 的回合里让夹爪在搬运中松手；<code>alphabet_soup_slip_reactive</code> 也一样，但孪生什么都不扰动，回路只能从真机的失败里学。在一块 RTX 4080 SUPER、16 个 CPU 核上，每个场景约七分钟，十二个场景约 85 分钟；相机通过 EGL 渲染，由主机表里的 <code>MUJOCO_GL=egl</code> 选定。最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#把-libero-object-当作真机">README</a>。<code>stations/libero/brief.example.toml</code> 是把其中一个任务单独写成的 brief。</p>
+<p>LIBERO-Object 的十个任务各跑一遍完整回路，真机用初始状态 0 到 24。回路结束后，部署的策略再跑初始状态 25 到 49，这些状态任何一次构建都没见过：这就是留出集成绩。另外三个场景让基准和孪生不一样：<code>alphabet_soup_slip</code> 在真机 40% 的回合里让夹爪在搬运中松手；<code>alphabet_soup_slip_reactive</code> 也一样，但孪生什么都不扰动，回路只能从真机的失败里学；<code>alphabet_soup_slip_online</code> 让这台真机在线运行（第 10 节）。在一块 RTX 4080 SUPER、16 个 CPU 核上，每个场景约七分钟，十个任务加前两个打滑场景约 85 分钟；相机通过 EGL 渲染，由主机表里的 <code>MUJOCO_GL=egl</code> 选定。最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#把-libero-object-当作真机">README</a>。<code>benchmarks/libero/brief.example.toml</code> 是把其中一个任务单独写成的 brief。</p>
 <h2 id="12-扩展">12. 扩展</h2>
 <p><strong>接一个 LLM 作者。</strong> 写一个类，实现 <code>viper/models.py</code> 里的两个协议，brief 里写 <code>models = "my_pkg.authors:LlmAuthor"</code>：</p>
 <pre><code class="language-python">class LlmAuthor:
@@ -771,14 +1109,16 @@ cat runs/libero/results.md
     def edit(self, graph, *, kind, failures):
         &quot;&quot;&quot;原地修改 graph（父图的副本）；没有可提的编辑就返回 False。&quot;&quot;&quot;
 </code></pre>
-<p><strong>接一个新仿真器或真机。</strong> 新建 <code>stations/&lt;名字&gt;/</code>：</p>
+<p><strong>接一个新机器人、基准、仿真或任务。</strong> 每一种都是它角色目录下的一个文件夹，带一份规格 <code>&lt;kind&gt;.toml</code>，写明策略可以调用什么；<code>viper parts</code> 列出装好的部分以及每份规格的问题。各目录的 README 说明里面放什么：</p>
 <ul>
-<li><code>station.toml</code>：<code>name</code>、<code>description</code>、<code>provides = ["sim", "real"]</code>、<code>tools</code>（两边都提供的工具），以及 <code>[sim] tools</code>（仅仿真提供的真值工具）。</li>
-<li><code>__init__.py</code>：提供 <code>make_sim(spec, options)</code> 和 <code>make_real(spec, options)</code>。</li>
-<li><strong>仿真一侧</strong>要实现 <code>build_twin</code>、<code>check_twin</code>、<code>check_goal</code>、<code>rehearse</code>；可选 <code>film</code>、<code>starts_from_states</code>、<code>vary</code>。</li>
-<li><strong>机器人一侧</strong>要实现 <code>execute</code>；可选 <code>survey</code> 和 <code>surveys</code>。</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/embodiments/README.md"><code>embodiments/&lt;名字&gt;/</code></a>，真机：<code>embodiment.toml</code> 写它的臂、工具、关节、相机和模型，外加驱动。多臂机器人把每条臂的工具命名为 <code>robot.&lt;arm&gt;.&lt;tool&gt;</code>，各臂工具相同；作者用 <code>viper.policy.graph.on_arm</code> 把单臂的图或子图放到某条臂上；给出图的目录时，脚本里的 <code>tool("robot.&lt;tool&gt;")</code> 调用也放到这条臂上，写在脚本旁边的一份副本里。每个 <code>[cameras.&lt;名字&gt;]</code> 写驱动怎么读一帧、画面尺寸、内参和相机装在哪；机器人为实时页面要做的就这些。</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/benchmarks/README.md"><code>benchmarks/&lt;名字&gt;/</code></a>，替真机站位的世界：<code>benchmark.toml</code> 写它的本体、能演它的仿真和它的相机，外加一个实现 <code>execute</code>（可选 <code>survey</code> 和 <code>surveys</code>）的机器人。</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/README.md"><code>simulation/&lt;名字&gt;/</code></a>，物理后端：<code>simulation.toml</code> 写它的世界能加载哪些机器人和它的工具（<code>[sim] tools</code> 是它自己的真值工具），外加一个实现 <code>build_twin</code>、<code>check_twin</code>、<code>check_goal</code>、<code>rehearse</code>（可选 <code>film</code>、<code>starts_from_states</code>、<code>vary</code>、<code>see_twin</code>）的仿真器。共用作业循环（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/jobs/episode.py"><code>viper/jobs/episode.py</code></a>）的 bench 加一个 <code>checkpoint()</code>（它此刻观测到的状态）给分阶段的目标用，回合跑不完时设置 <code>fault</code>，再加一个 <code>see(camera)</code>，有页面在看时循环把它显示在 <code>&lt;侧&gt;/&lt;名字&gt;</code> 上。</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tasks/README.md"><code>tasks/&lt;名字&gt;/</code></a>，要做的事：<code>task.toml</code>，以及每个世界一套图库和写目标与图的作者。</li>
+<li><strong>事实和 manifest。</strong> 为了找缺口（第 10 节），检查点的状态带上 <code>facts</code>，如 <code>["held(cube)", "on(cube, bench)"]</code>；任务的 <code>task.json</code> 用 <code>roles</code> 说明每个物体的角色；种子图的 <code>manifests.json</code> 说明每个子图 <code>needs</code>、<code>gives</code>、<code>clears</code> 什么。<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tasks/pick_place/cube/author.py"><code>tasks/pick_place/cube/author.py</code></a> 两样都写。</li>
 </ul>
-<p>协议写在 <code>viper/station.py</code>。最简单的做法是照 <code>stations/bullet/</code> 改：它通过任务目录运行 worker，VIPER 和仿真器之间只传 <code>job.json</code> 和 <code>results-*.jsonl</code>。</p>
+<p>机器人（本体的驱动或基准的机器人）的勘察返回 <code>views</code> 和 <code>readings</code>，就有重建门；<code>survey</code> 接受 <code>looks</code> 参数，就能被告知怎么再看；<code>survey_checks</code> 声明自洽检查，每个是 <code>survey -&gt; [{"why", "quantities", "objects", "route"}]</code>（再看也没用时 <code>route</code> 写 <code>"method"</code>）；声明 <code>measures</code>（<code>{量: [方法, ...]}</code>，好的在前）和 <code>remeasure(survey, frames, methods, out)</code>（用这些方法重新测存下的画面，不动机器人），就打开了方法这条路。仿真器加上 <code>look_twin(twin, views, out)</code>：从每个视角的相机渲染孪生，按 views 的格式给出每个物体的掩码和深度；渲染能定出某个值时，在物体上带 <code>pins</code>。toy 基准的机器人和 fake 仿真全都做了（<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/fake/look.py"><code>simulation/fake/look.py</code></a>）。</p>
+<p>协议写在 <code>viper/parts.py</code>。最简单的仿真是 <code>simulation/pybullet/</code>：它通过任务目录运行 worker，VIPER 和仿真器之间只传 <code>job.json</code> 和 <code>results-*.jsonl</code>。</p>
 <h2 id="13-常见问题">13. 常见问题</h2>
 <p><strong><code>ssh: Could not resolve hostname gpu</code></strong>：<code>~/.ssh/config</code> 里没有 <code>Host gpu</code>。加上第 7 节那段，或者把 brief 里的 <code>ssh_config</code> 指向一个有它的文件。</p>
 <p><strong>geometry 工具包起不来，报 <code>uv: command not found</code></strong>：非交互的 SSH 只有很短的 PATH。在 <code>[sim_options.env]</code> 里把 PATH 完整写出来，包含 <code>uv</code> 所在的目录（<code>env</code> 原样写入，不展开 <code>$PATH</code>）。</p>
