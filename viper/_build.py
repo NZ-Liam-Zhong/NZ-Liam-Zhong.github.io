@@ -1,4 +1,4 @@
-"""Write /viper/index.html and /viper/en.html from a VIPER checkout's guides.
+"""Write /viper/index.html (English) and /viper/zh.html from a VIPER checkout's guides.
 
     uv run --with markdown python viper/_build.py ~/Desktop/VIPER_Temp
 
@@ -18,21 +18,24 @@ BRANCH = "feat/stations"
 HERE = Path(__file__).parent
 
 PAGES = {
-    "zh": {
-        "source": "docs/guide.zh-CN.md",
-        "out": "index.html",
-        "lang": "zh-CN",
-        "title": "VIPER 使用指南",
-        "other": ("en.html", "English"),
-    },
     "en": {
         "source": "docs/guide.md",
-        "out": "en.html",
+        "out": "index.html",
         "lang": "en",
         "title": "Using VIPER",
-        "other": ("./", "简体中文"),
+        "other": ("zh.html", "简体中文"),
+    },
+    "zh": {
+        "source": "docs/guide.zh-CN.md",
+        "out": "zh.html",
+        "lang": "zh-CN",
+        "title": "VIPER 使用指南",
+        "other": ("./", "English"),
     },
 }
+
+# The English guide used to live here; old links land on it again.
+MOVED = {"en.html": "./"}
 
 STYLE = """
 :root { --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --soft: #f6f8fa; --accent: #0969da; }
@@ -62,6 +65,7 @@ table { border-collapse: collapse; width: 100%; margin: 14px 0; display: block; 
 th, td { border: 1px solid var(--line); padding: 7px 11px; text-align: left; vertical-align: top; }
 th { background: var(--soft); font-weight: 600; }
 blockquote { margin: 0; padding: 0 14px; color: var(--muted); border-left: 4px solid var(--line); }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
 """
 
 
@@ -71,25 +75,30 @@ def slug(value: str, separator: str) -> str:
     return value.replace(" ", separator)
 
 
-def links(text: str) -> str:
-    """Point the guides' links into the repository at GitHub."""
+def links(text: str, checkout: Path) -> str:
+    """Point the guides' links into the repository at GitHub, and copy their pictures here."""
 
     def repoint(match: re.Match) -> str:
-        label, target = match.group(1), match.group(2)
+        bang, label, target = match.group(1), match.group(2), match.group(3)
+        if bang:
+            if not target.startswith("http"):
+                (HERE / target).parent.mkdir(parents=True, exist_ok=True)
+                (HERE / target).write_bytes((checkout / "docs" / target).read_bytes())
+            return f"![{label}]({target})"
         if target.startswith(("http", "#")) or target in ("guide.md", "guide.zh-CN.md"):
-            target = {"guide.md": "en.html", "guide.zh-CN.md": "./"}.get(target, target)
+            target = {"guide.md": "./", "guide.zh-CN.md": "zh.html"}.get(target, target)
             return f"[{label}]({target})"
         path = Path("docs", target).as_posix().replace("docs/../", "")
         return f"[{label}]({REPO}/blob/{BRANCH}/{path})"
 
-    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", repoint, text)
+    return re.sub(r"(!?)\[([^\]]+)\]\(([^)\s]+)\)", repoint, text)
 
 
 def page(checkout: Path, spec: dict) -> str:
     text = (checkout / spec["source"]).read_text()
     text = re.sub(r"^\[(English|简体中文)\]\([^)]*\)\n", "", text, flags=re.M)
     body = markdown.markdown(
-        links(text),
+        links(text, checkout),
         extensions=["extra", "sane_lists", "toc"],
         extension_configs={"toc": {"slugify": slug}},
     )
@@ -128,11 +137,29 @@ def page(checkout: Path, spec: dict) -> str:
 """
 
 
+def moved(target: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="refresh" content="0; url={target}">
+  <link rel="canonical" href="{target}">
+  <title>Using VIPER</title>
+</head>
+<body><p>The guide is now at <a href="{target}">{target}</a>.</p></body>
+</html>
+"""
+
+
 def main() -> None:
     checkout = Path(sys.argv[1]).expanduser()
     for spec in PAGES.values():
         (HERE / spec["out"]).write_text(page(checkout, spec))
         print(HERE / spec["out"])
+    for name, target in MOVED.items():
+        (HERE / name).write_text(moved(target))
+        print(HERE / name, "->", target)
 
 
 if __name__ == "__main__":

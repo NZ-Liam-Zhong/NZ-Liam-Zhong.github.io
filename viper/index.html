@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>VIPER 使用指南</title>
+  <title>Using VIPER</title>
   <style>
 :root { --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --soft: #f6f8fa; --accent: #0969da; }
 * { box-sizing: border-box; }
@@ -33,52 +33,60 @@ table { border-collapse: collapse; width: 100%; margin: 14px 0; display: block; 
 th, td { border: 1px solid var(--line); padding: 7px 11px; text-align: left; vertical-align: top; }
 th { background: var(--soft); font-weight: 600; }
 blockquote { margin: 0; padding: 0 14px; color: var(--muted); border-left: 4px solid var(--line); }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
 </style>
 </head>
 <body>
 <header><div class="bar">
   <a class="brand" href="#">VIPER</a>
-  <a href="en.html">English</a>
+  <a href="zh.html">简体中文</a>
   <a href="https://github.com/runtime-si/VIPER_Temp">GitHub</a>
 </div></header>
 <main>
-<h1 id="viper-使用指南">VIPER 使用指南</h1>
-<p>VIPER 是一个给机器人策略用的 make。你写一份 brief：任务是什么、在哪个仿真器里搜索、在哪个机器人上执行。VIPER 按顺序构建六个目标，每个目标后面有一道关卡。真机失败时，诊断把每个失败送回能修它的阶段，只重建受影响的部分，再试一轮。产物是一张 <a href="https://graph-robots.github.io/graph-as-policy/">Graph-as-Policy</a>（GaP）策略图，仿真和真机跑的是同一份。</p>
+<h1 id="using-viper">Using VIPER</h1>
+<p>VIPER is make for robot policies. A brief says what the task is, which
+simulator to search in and which robot to run on. VIPER builds six targets in
+order, each behind a gate. When the robot fails, the diagnosis sends each
+failure back to the stage that can fix it, rebuilds only what that made stale,
+and tries again. What it builds is a
+<a href="https://graph-robots.github.io/graph-as-policy/">Graph-as-Policy</a> (GaP)
+graph, the same one in simulation and on the robot.</p>
 <ul>
-<li><a href="#1-总流程">1. 总流程</a></li>
-<li><a href="#2-安装">2. 安装</a></li>
-<li><a href="#3-离线演示">3. 离线演示</a></li>
-<li><a href="#4-日常命令">4. 日常命令</a></li>
-<li><a href="#5-写一份-brief">5. 写一份 brief</a></li>
-<li><a href="#6-在-gpu-上跑-robosimstudio">6. 在 GPU 上跑 RoboSimStudio</a></li>
-<li><a href="#7-借用技能库里的技能">7. 借用技能库里的技能</a></li>
-<li><a href="#8-运行目录里有什么">8. 运行目录里有什么</a></li>
-<li><a href="#9-真机失败之后诊断的四条路">9. 真机失败之后：诊断的四条路</a></li>
-<li><a href="#10-基准套件">10. 基准套件</a></li>
-<li><a href="#11-扩展">11. 扩展</a></li>
-<li><a href="#12-常见问题">12. 常见问题</a></li>
+<li><a href="#1-the-loop">1. The loop</a></li>
+<li><a href="#2-install">2. Install</a></li>
+<li><a href="#3-the-offline-demo">3. The offline demo</a></li>
+<li><a href="#4-everyday-commands">4. Everyday commands</a></li>
+<li><a href="#5-watching-a-run-and-talking-to-vi">5. Watching a run, and talking to Vi</a></li>
+<li><a href="#6-writing-a-brief">6. Writing a brief</a></li>
+<li><a href="#7-robosimstudio-on-a-gpu-host">7. RoboSimStudio on a GPU host</a></li>
+<li><a href="#8-borrowing-a-skill-from-the-hub">8. Borrowing a skill from the hub</a></li>
+<li><a href="#9-what-a-run-directory-holds">9. What a run directory holds</a></li>
+<li><a href="#10-after-the-robot-fails-the-four-routes">10. After the robot fails: the four routes</a></li>
+<li><a href="#11-the-benchmark-suite">11. The benchmark suite</a></li>
+<li><a href="#12-extending-viper">12. Extending VIPER</a></li>
+<li><a href="#13-troubleshooting">13. Troubleshooting</a></li>
 </ul>
-<h2 id="1-总流程">1. 总流程</h2>
+<h2 id="1-the-loop">1. The loop</h2>
 <pre class="mermaid">flowchart LR
-  subgraph A[&quot;Agent A：看清现场&quot;]
-    survey[&quot;survey&lt;br/&gt;机器人测量工作台&quot;] --&gt; twin[&quot;twin&lt;br/&gt;建一族随机化孪生场景&quot;]
+  subgraph A[&quot;Agent A: see the bench&quot;]
+    survey[&quot;survey&lt;br/&gt;the robot measures its bench&quot;] --&gt; twin[&quot;twin&lt;br/&gt;a family of randomised scenes&quot;]
   end
-  subgraph B[&quot;Agent B：在仿真里迭代&quot;]
-    release[&quot;release&lt;br/&gt;搜索策略图&quot;] --&gt; recoveries[&quot;recoveries&lt;br/&gt;长出恢复子图&quot;]
+  subgraph B[&quot;Agent B: iterate in simulation&quot;]
+    release[&quot;release&lt;br/&gt;search for a graph&quot;] --&gt; recoveries[&quot;recoveries&lt;br/&gt;grow recovery subgraphs&quot;]
   end
-  subgraph C[&quot;Agent C：真机&quot;]
-    real[&quot;real&lt;br/&gt;机器人执行&quot;]
+  subgraph C[&quot;Agent C: the robot&quot;]
+    real[&quot;real&lt;br/&gt;run on the robot&quot;]
   end
   brief([&quot;brief&quot;]) --&gt; survey
-  twin --&gt; task[&quot;task&lt;br/&gt;写目标 goal&quot;]
+  twin --&gt; task[&quot;task&lt;br/&gt;write the goal&quot;]
   task --&gt; release
   recoveries --&gt; real
-  real --&gt;|通过| done([&quot;部署，存一个版本包&quot;])
-  real --&gt;|失败| diag{&quot;diagnose&quot;}
-  diag --&gt;|测量值超出 twin 范围| tf[/twin_fixes/]
-  diag --&gt;|twin 也复现失败| rg[/regressions/]
-  diag --&gt;|twin 不复现，知道卡在哪| rs[/recovery_seeds/]
-  diag --&gt;|twin 不复现，还能测更多| sr[/survey_requests/]
+  real --&gt;|passes| done([&quot;deploy, save a version&quot;])
+  real --&gt;|fails| diag{&quot;diagnose&quot;}
+  diag --&gt;|measured outside the twin| tf[/twin_fixes/]
+  diag --&gt;|the twin fails it too| rg[/regressions/]
+  diag --&gt;|the twin does not, and the robot said where it stopped| rs[/recovery_seeds/]
+  diag --&gt;|the twin does not, and the robot can measure more| sr[/survey_requests/]
   tf --&gt; twin
   rg --&gt; release
   rs --&gt; recoveries
@@ -87,55 +95,61 @@ blockquote { margin: 0; padding: 0 14px; color: var(--muted); border-left: 4px s
 <table>
 <thead>
 <tr>
-<th>目标</th>
-<th>做什么</th>
-<th>关卡</th>
+<th>Target</th>
+<th>What it does</th>
+<th>Gate</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>survey</code></td>
-<td>建 twin 之前，机器人先测工作台；被要求时测得更多</td>
-<td>要求测的都测到了</td>
+<td>The robot measures its bench before the twin is built, and more when asked</td>
+<td>Everything asked for was measured</td>
 </tr>
 <tr>
 <td><code>twin</code></td>
-<td>用 brief 的估计、测量结果和历次修正，建一族随机化场景</td>
-<td>工位自己的 twin 检查</td>
+<td>Builds a family of randomised scenes from the brief, the survey and every fix</td>
+<td>The station's twin check</td>
 </tr>
 <tr>
 <td><code>task</code></td>
-<td>根据 twin 里有哪些物体写目标</td>
-<td>目标只提到 twin 里有的物体</td>
+<td>Writes the goal from the objects the twin has</td>
+<td>The goal names only objects the twin has</td>
 </tr>
 <tr>
 <td><code>release</code></td>
-<td>在 twin 里搜索策略图</td>
-<td>留出实例上成功率的 Wilson 95% 下界 ≥ 0.8</td>
+<td>Searches the twin for a graph</td>
+<td>Wilson 95% lower bound of success on holdout instances ≥ 0.8</td>
 </tr>
 <tr>
 <td><code>recoveries</code></td>
-<td>从策略卡住的状态出发，长出恢复子图，接到失败出口上</td>
-<td>整张图重新过发布关卡，且不比 release 差</td>
+<td>Grows recovery subgraphs from the states the release gets stuck in, spliced onto its failure exits</td>
+<td>The whole graph passes the release gate again and loses nothing the release passed</td>
 </tr>
 <tr>
 <td><code>real</code></td>
-<td>部署的图在机器人上执行</td>
-<td>成功率 ≥ 0.8</td>
+<td>Runs the deployed graph on the robot</td>
+<td>Success rate ≥ 0.8</td>
 </tr>
 </tbody>
 </table>
-<p>每个目标的构建键由它的版本和所有依赖的内容摘要组成。键没变就跳过，变了就重建，下游跟着重建。诊断唯一做的事是往 <code>inputs/</code> 下的某个目录追加一条记录，依赖它的目标因此变旧，下一轮只重建这些。</p>
-<h2 id="2-安装">2. 安装</h2>
-<p>需要 Python 3.11 或 3.12，以及 <a href="https://docs.astral.sh/uv/">uv</a>。VIPER 本身只用标准库，仿真器在各自的 Python 环境里运行，VIPER 从不 import 它们。</p>
+<p>A target's build key digests its version and the content of everything it
+needs: the same key skips the build, a new one rebuilds it and everything
+downstream. The diagnosis does one thing, append an entry under <code>inputs/</code>,
+which makes the targets that need that input stale; the next round rebuilds
+just those.</p>
+<h2 id="2-install">2. Install</h2>
+<p>VIPER needs Python 3.11 or 3.12 and <a href="https://docs.astral.sh/uv/">uv</a>. It runs
+on the standard library alone; each simulator runs in its own Python, which
+VIPER never imports.</p>
 <pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER_Temp.git
 cd VIPER_Temp
-git checkout feat/stations          # PR #2 合并之前
+git checkout feat/stations          # until PR #2 merges
 uv venv --python 3.11 &amp;&amp; source .venv/bin/activate
 uv pip install -e &quot;.[test]&quot;
 viper stations
 </code></pre>
-<p><code>viper stations</code> 列出装好的工位：</p>
+<p><code>viper stations</code> lists the installed stations:</p>
 <pre><code class="language-text">bullet       real+sim   PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
 fake         real+sim   A toy cube-to-plate world in plain Python, for tests and the demo
 rss          real+sim   RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
@@ -144,43 +158,47 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <table>
 <thead>
 <tr>
-<th>工位</th>
-<th>引擎</th>
-<th>还需要什么</th>
+<th>Station</th>
+<th>Engine</th>
+<th>What else it needs</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>fake</code></td>
-<td>纯 Python</td>
-<td>不需要别的；演示和测试用</td>
+<td>plain Python</td>
+<td>nothing; the demo and the tests</td>
 </tr>
 <tr>
 <td><code>rss</code></td>
-<td>RoboSimStudio（Newton / MuJoCo-Warp）</td>
-<td>GPU，以及带 GaP 的 RoboSimStudio 检出</td>
+<td>RoboSimStudio on Newton (MuJoCo-Warp)</td>
+<td>a GPU and a RoboSimStudio checkout with GaP</td>
 </tr>
 <tr>
 <td><code>bullet</code></td>
-<td>PyBullet，CPU</td>
-<td><code>pybullet</code>、<code>numpy</code>、GaP</td>
+<td>PyBullet on the CPU</td>
+<td><code>pybullet</code>, <code>numpy</code> and GaP</td>
 </tr>
 <tr>
 <td><code>sapien</code></td>
-<td>SAPIEN 3（PhysX 5）</td>
-<td><code>sapien</code>、<code>pybullet_data</code>、<code>numpy</code>、GaP，以及支持 Vulkan 的 GPU</td>
+<td>SAPIEN 3 on PhysX 5</td>
+<td><code>sapien</code>, <code>pybullet_data</code>, <code>numpy</code>, GaP and a GPU with Vulkan</td>
 </tr>
 </tbody>
 </table>
-<p>后三个摆的是同一个任务（Panda 用相机找方块、放到垫子上），工具名一致，所以一张图能在任意一个上跑，也可以在 A 里搜索、在 B 上执行。目前所有工位的"真机"都是替身：用真实场景参数建的同一个仿真器。</p>
-<p>跑测试：</p>
+<p>The last three stage one task, a Panda that finds a cube by camera and puts it
+on a pad, with the same tool names, so one graph runs on any of them and a
+brief may search in one and run on another. Every robot is a stand-in for now:
+the same simulator built from the true scene.</p>
+<p>To run the tests:</p>
 <pre><code class="language-bash">uv run pytest -q tests
 </code></pre>
-<h2 id="3-离线演示">3. 离线演示</h2>
-<p><code>fake</code> 工位是一个纯 Python 的玩具世界，带一个脚本化的作者。整个闭环不到一秒：</p>
+<h2 id="3-the-offline-demo">3. The offline demo</h2>
+<p>The <code>fake</code> station is a toy world in plain Python with a scripted author. The
+whole loop takes under a second:</p>
 <pre><code class="language-bash">viper demo --out runs/demo
 </code></pre>
-<p>日志（节选）：</p>
+<p>The log, abridged:</p>
 <pre><code class="language-text">INFO round 1 of 3
 INFO building survey
 INFO twin passed its gate tcp_bias_mm=0
@@ -201,110 +219,296 @@ INFO n0005 from topology is invalid: calls sim.get_object_pose, which not every 
 INFO release passed its gate lower_bound=0.8137 n=100 rate=0.89 successes=89
 INFO real passed its gate successes=20 n=20 rate=1
 </code></pre>
-<p>这段日志按顺序是这样的：</p>
+<p>In order:</p>
 <ol>
-<li><strong>第一轮。</strong> twin 以为工具点没有偏差，搜出来的策略在 twin 里 94/100，到了机器人上只有 65%。</li>
-<li><strong>诊断。</strong> 机器人每个回合都读了工具点偏差，中位数是 6.509 mm，而 twin 只覆盖 [-2.5, 2.5]，于是记一条 twin 修正。</li>
-<li><strong>第二轮。</strong> <code>survey</code> 和 <code>task</code> 不受影响，跳过；<code>twin</code> 按 6.509 mm 重建，<code>release</code> 重新搜索。</li>
-<li><strong>安全检查。</strong> 搜索过程中，作者提议了一个调用 <code>sim.get_object_pose</code>（仿真专有的真值）的编辑。它在运行前就被拒绝了，因为机器人没有这个工具。</li>
-<li><strong>第二次真机。</strong> 20/20。</li>
+<li><strong>First round.</strong> The twin assumes the tool point lands where it is sent.
+   The policy it finds does 94/100 there and 65% on the robot.</li>
+<li><strong>Diagnosis.</strong> The robot read the tool point's offset on every episode, a
+   median of 6.509 mm, outside the twin's [-2.5, 2.5], so the twin gets a fix.</li>
+<li><strong>Second round.</strong> <code>survey</code> and <code>task</code> do not need the fix and are kept;
+   <code>twin</code> is rebuilt at 6.509 mm and <code>release</code> searches again.</li>
+<li><strong>The safety check.</strong> During the search the author proposes an edit that
+   calls <code>sim.get_object_pose</code>, the simulator's ground truth. It is rejected
+   before it runs, because the robot has no such tool.</li>
+<li><strong>The robot again.</strong> 20/20.</li>
 </ol>
-<p>接着：</p>
-<pre><code class="language-bash">viper status runs/demo     # 每个目标的状态
-viper show runs/demo       # 写 runs/demo/report/index.html
+<p>Then:</p>
+<pre><code class="language-bash">viper status runs/demo     # every target's build and gate
+viper show runs/demo       # writes runs/demo/report/index.html
 open runs/demo/report/index.html
 </code></pre>
-<h2 id="4-日常命令">4. 日常命令</h2>
+<h2 id="4-everyday-commands">4. Everyday commands</h2>
 <table>
 <thead>
 <tr>
-<th>命令</th>
-<th>作用</th>
+<th>Command</th>
+<th>What it does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>viper run BRIEF --out DIR</code></td>
-<td>构建 brief 的全部目标，真机失败时闭环</td>
+<td>Builds a brief's targets, closing the loop when the robot fails</td>
 </tr>
 <tr>
 <td><code>viper run BRIEF --out DIR --until release</code></td>
-<td>只构建到某个目标；闭环只在 <code>real</code> 处才会闭合</td>
+<td>Builds up to one target; the loop closes only at <code>real</code></td>
 </tr>
 <tr>
 <td><code>viper resume DIR</code></td>
-<td>用运行目录里保存的 brief 再跑一次，建好的目标会跳过</td>
+<td>Builds again from the brief the run directory holds, skipping what is built</td>
 </tr>
 <tr>
 <td><code>viper resume DIR --brief NEW.toml</code></td>
-<td>换一份 brief 再跑，只重建受影响的目标</td>
+<td>Builds again from another brief, rebuilding only what it changed</td>
+</tr>
+<tr>
+<td><code>viper run BRIEF --out DIR --watch</code></td>
+<td>The same under a live page with Vi (section 5); <code>demo</code> and <code>resume</code> take it too</td>
+</tr>
+<tr>
+<td><code>viper watch DIR</code></td>
+<td>The live page over a run directory, running or not</td>
 </tr>
 <tr>
 <td><code>viper status DIR</code></td>
-<td>每个目标的当前构建、关卡结果，以及有哪些输入</td>
+<td>Every target's current build and gate, and the inputs</td>
 </tr>
 <tr>
 <td><code>viper show DIR</code></td>
-<td>把每次构建、关卡、路由、搜索树和视频写成 <code>DIR/report/index.html</code></td>
+<td>Writes every build, gate, route, search tree and film to <code>DIR/report/index.html</code></td>
 </tr>
 <tr>
 <td><code>viper export DIR --to PKG</code></td>
-<td>导出部署的策略和全部历史，成为一个 <code>viper.package/1</code> 目录</td>
+<td>Writes the deployed policy and the whole history as a <code>viper.package/1</code></td>
 </tr>
 <tr>
 <td><code>viper import PKG --out DIR</code></td>
-<td>把包载入运行目录，然后用 <code>viper resume DIR</code> 继续</td>
+<td>Loads a package into a run directory; <code>viper resume DIR</code> continues it</td>
 </tr>
 <tr>
 <td><code>viper import PKG --out DIR --brief OTHER.toml</code></td>
-<td>换一个场景：只带走策略，作为新运行的搜索起点</td>
+<td>Another scene: carries over the policy alone, as a seed of the new run's search</td>
 </tr>
 <tr>
 <td><code>viper stations</code></td>
-<td>列出装好的工位</td>
+<td>Lists the installed stations</td>
 </tr>
 <tr>
 <td><code>viper hub search --index HUB --station NAME</code></td>
-<td>列出这个工位能用的技能；加 <code>--all</code> 同时列出不能用的及原因</td>
+<td>Lists the hub skills a station can run; <code>--all</code> adds the rest and why not</td>
 </tr>
 <tr>
 <td><code>viper hub lock GRAPH --index HUB</code></td>
-<td>给一张图写 <code>skills.lock</code></td>
+<td>Writes a graph's <code>skills.lock</code></td>
 </tr>
 <tr>
 <td><code>viper hub publish DIR --to HUB/skills</code></td>
-<td>把一次运行找到的恢复子图写成技能库的技能包</td>
+<td>Writes a run's recoveries as hub skill bundles</td>
 </tr>
 </tbody>
 </table>
-<p><code>run</code> 和 <code>resume</code> 都有 <code>--rounds N</code>（闭环最多几轮，默认 3）。任何命令加 <code>-v</code> 会输出调试日志。</p>
-<p>几种常见用法：</p>
-<pre><code class="language-bash"># 先只在仿真里搜到 release，看看再说
+<p><code>run</code> and <code>resume</code> take <code>--rounds N</code>, the most rounds of the loop, 3 by
+default. <code>-v</code> before any command logs debug messages.</p>
+<p>Common patterns:</p>
+<pre><code class="language-bash"># Search in simulation up to the release, and look before going to the robot
 viper run brief.toml --out runs/x --until release
 viper show runs/x
-viper resume runs/x                       # 满意了再上机器人
+viper resume runs/x                       # then close the loop
 
-# 中断了（关了终端、断了网），接着跑
+# Continue after an interruption
 viper resume runs/x
 
-# 改了 brief 里的设置，只重建受影响的部分
+# Change a setting in the brief and rebuild only what it touches
 viper resume runs/x --brief brief.toml
 
-# 把这次的策略带到另一个场景
+# Take this run's policy to another scene
 viper export runs/x --to pkgs/x
 viper import pkgs/x --out runs/y --brief other.toml
 viper resume runs/y
 </code></pre>
-<p>运行每一轮真机失败之后、以及结束时，会把自己存成一个版本包（<code>DIR/versions/v0001</code>、<code>v0002</code>……），任何一个都可以再 <code>viper import</code>。</p>
-<h2 id="5-写一份-brief">5. 写一份 brief</h2>
-<p>brief 是一个 TOML 文件，例子在 <code>stations/&lt;工位&gt;/brief.example.toml</code>。</p>
-<pre><code class="language-toml">instruction = &quot;put the cube on the pad&quot;          # 必填：任务
-sim = &quot;rss&quot;                                      # 必填：在哪个工位的仿真器里搜索
-real = &quot;rss&quot;                                     # 必填：在哪个工位的机器人上执行
-models = &quot;stations.cube_on_pad:LibraryAuthor&quot;    # 作者：&quot;fake&quot;，或 &quot;模块:类&quot;
-# goal = &quot;(once ...)&quot;                            # 可选：直接给目标，否则按模板写
+<p>After every round the robot failed, and when it ends, a run saves itself as a
+package under <code>DIR/versions/v0001</code>, <code>v0002</code>, and so on; <code>viper import</code> loads
+any of them.</p>
+<h2 id="5-watching-a-run-and-talking-to-vi">5. Watching a run, and talking to Vi</h2>
+<p><code>--watch</code> runs a command under a live page on <code>http://127.0.0.1:8765/</code>:</p>
+<pre><code class="language-bash">viper demo --out runs/demo --watch            # the demo, paced to take about a minute
+viper run brief.toml --out runs/x --watch     # a run, with the page beside it
+viper resume runs/x --watch                   # the same, going on from where it stopped
+viper watch runs/x                            # the page over any run directory, running or not
+viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # with the robot's camera
+</code></pre>
+<p><img alt="The live page: the simulator and the robot's camera, the loop, and Vi" src="assets/watch.png" /></p>
+<p>The page shows, as they happen:</p>
+<ul>
+<li><strong>the simulation</strong>: the twin rehearsing, one tile per instance of the batch
+  in progress, each marked success or failure;</li>
+<li><strong>the robot's camera</strong>: what the station draws, a camera's MJPEG stream
+  (<code>--feed camera=URL</code>, or <em>Add a stream URL</em> on the page), or this
+  computer's webcam;</li>
+<li><strong>where the run is</strong>: the six targets, built, building, stale or failed,
+  with their gate readings, the checkpoint the run is at, and the inputs the
+  diagnosis has written;</li>
+<li><strong>the success rate</strong>: one tile per episode, green or red, from the build in
+  progress or the robot's last run;</li>
+<li><strong>the search</strong>: the gate rate of the best graph each round with its Wilson
+  bound, each edit tried and whether it passed screening;</li>
+<li><strong>the details</strong>, one tab each: the graph being deployed with the failures
+  counted at each node, where each cube started and ended on the bench, the
+  films the simulator recorded, the routes the diagnosis took, and the log.</li>
+</ul>
+<p>Beside it is <strong>Vi</strong>, who says what the run is doing as it does it (a round
+starts, a target is built, the search finds a better graph, an edit is
+rejected, the robot fails and why, the route the diagnosis takes) and takes
+requests, typed or spoken (the browser's speech, where it has one):</p>
+<table>
+<thead>
+<tr>
+<th>Say</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"how is it going"</td>
+<td>Where the run is and the latest gate readings</td>
+</tr>
+<tr>
+<td>"pause"</td>
+<td>The run holds at its next checkpoint, keeping its process</td>
+</tr>
+<tr>
+<td>"go on"</td>
+<td>A held run goes on; a stopped one resumes</td>
+</tr>
+<tr>
+<td>"stop"</td>
+<td>The run stops at its next checkpoint, with what it built kept</td>
+</tr>
+<tr>
+<td>"stop now"</td>
+<td>The process is killed; the build in progress is lost</td>
+</tr>
+<tr>
+<td>"only up to release"</td>
+<td>Resumes with <code>--until release</code></td>
+</tr>
+<tr>
+<td>"10 real episodes", "8 search rounds", "real_episodes = 5"</td>
+<td>Restarts from a brief with the setting changed; only what it touches is rebuilt</td>
+</tr>
+<tr>
+<td>"why did it fail"</td>
+<td>The diagnosis of every failed round</td>
+</tr>
+<tr>
+<td>"what are regressions"</td>
+<td>What a VIPER word means</td>
+</tr>
+</tbody>
+</table>
+<h3 id="where-the-page-meets-the-run">Where the page meets the run</h3>
+<p>The page and the run share nothing but files under <code>DIR/live/</code>, so a run
+goes the same with or without a page, and a page can open on any run
+directory, running or finished:</p>
+<pre class="mermaid">flowchart LR
+  subgraph browser[&quot;The browser&quot;]
+    page[&quot;the page&lt;br/&gt;targets, search, episodes, details&quot;]
+    views[&quot;Simulation and Robot camera&quot;]
+    chat[&quot;Vi: chat, voice, suggestions&quot;]
+  end
+  subgraph watch[&quot;viper watch on 127.0.0.1:8765&quot;]
+    state[&quot;state.py&lt;br/&gt;the run directory as JSON&quot;]
+    vi[&quot;assistant.py&lt;br/&gt;Vi: narrates, takes requests&quot;]
+    runner[&quot;server.py&lt;br/&gt;starts, resumes, restarts the run&quot;]
+  end
+  subgraph dir[&quot;DIR/live/&quot;]
+    log[(&quot;log.jsonl&lt;br/&gt;every log record and event&quot;)]
+    now[(&quot;now.json&lt;br/&gt;where the run is&quot;)]
+    control[(&quot;control.json&lt;br/&gt;run, pause or stop&quot;)]
+    feeds[(&quot;feeds/&lt;br/&gt;the latest frame of each view&quot;)]
+  end
+  subgraph run[&quot;The run: viper run, resume or demo&quot;]
+    build[&quot;build.py&lt;br/&gt;before every round and target&quot;]
+    search[&quot;engine/search.py&lt;br/&gt;before every search round&quot;]
+    cp{{&quot;live.checkpoint&quot;}}
+    station[&quot;the station&lt;br/&gt;live.frame, while watched&quot;]
+  end
+  page --&gt;|&quot;GET /api/state, every second&quot;| state
+  views --&gt;|&quot;GET /feed/name, held until a new frame&quot;| feeds
+  chat --&gt;|&quot;POST /api/say&quot;| vi
+  vi --&gt;|&quot;pause, go on, stop&quot;| control
+  vi --&gt;|&quot;start, until, settings&quot;| runner
+  runner --&gt;|&quot;spawns&quot;| run
+  build --&gt; cp
+  search --&gt; cp
+  cp --&gt;|reads| control
+  cp --&gt;|writes| now
+  run --&gt;|logging| log
+  station --&gt; feeds
+  log --&gt; vi
+  log --&gt; state
+  now --&gt; state
+</pre>
+<p>A <strong>checkpoint</strong> is a call to <code>live.checkpoint</code> at three places in the run:
+before every round of the loop and before every target (<code>viper/build.py</code>),
+and before every round of the search (<code>viper/engine/search.py</code>). It is where
+anything you ask takes effect. Saying "pause" goes like this:</p>
+<ol>
+<li>Vi writes <code>{"want": "pause"}</code> to <code>live/control.json</code>; the page marks the
+   checkpoint ahead as asked.</li>
+<li>At its next checkpoint the run reads the file, logs <code>paused at round 2,
+   target release</code>, writes <code>paused</code> to <code>live/now.json</code>, and waits, reading the file
+   twice a second. Nothing is lost: the process, its search and its models
+   stay as they are.</li>
+<li>The page marks the checkpoint as held and Vi says where the run is
+   holding. You can look at anything on the page meanwhile.</li>
+<li>"go on" writes <code>{"want": "run"}</code> and the run carries on from the same
+   line. "stop" writes <code>{"want": "stop"}</code>: the run raises <code>Halted</code>, keeps
+   every target it built, and exits with status 3; "go on" then resumes it
+   with <code>viper resume</code>. A request that changes settings ("10 real episodes")
+   stops the run the same way and restarts it from a brief with the setting
+   changed, so only what the setting touches is rebuilt.</li>
+</ol>
+<p>A paused or stopped run says where in <code>live/now.json</code>. The run is a child of
+the page in its own session and writes its log to <code>DIR/live/run.log</code>; Ctrl-C
+on the page asks it to stop at the next checkpoint. Until a run is attached to
+its directory (the command line attaches it) a checkpoint does nothing, so
+code that calls the stages directly never waits.</p>
+<h3 id="the-live-views">The live views</h3>
+<p>A station draws a view with <code>live.frame("sim", data, ".svg", **meta)</code>: the
+latest picture goes to <code>live/feeds/sim.frame</code>, what it shows to
+<code>live/feeds/sim.json</code>. Drawing costs time, so a station draws only while
+<code>live.watched()</code> says a page has read the run in the last ten seconds; a run
+nobody watches draws nothing. The page asks for <code>/feed/sim?after=&lt;time&gt;</code>, and
+the server holds the request until a newer frame arrives, so frames show as
+soon as they are written without the page polling for pictures.</p>
+<p>The fake station draws both views. The bullet, SAPIEN and RoboSimStudio
+stations draw their renders in their workers, which run as jobs on this
+machine or over ssh; the frames a worker draws are copied back into the run's
+<code>live/feeds/</code> as they appear. The camera view takes, in the order the page prefers them: the
+station's frames, a stream URL, or this computer's webcam; when it has more
+than one, a switch above the view picks.</p>
+<p>The page listens on 127.0.0.1 alone; to watch a GPU host, forward the port
+(<code>ssh -L 8765:127.0.0.1:8765 gpu</code>) and open it locally.</p>
+<p>Vi speaks English by default; <code>--lang zh</code> or <code>VIPER_LANG=zh</code> starts her in
+Chinese, and the language button at the top of the page switches either way
+at any time. To have a language model answer instead of the rules, name one
+behind an OpenAI-compatible endpoint; Vi hands it the run's state and carries
+out the actions it returns, and goes back to the rules when it fails:</p>
+<pre><code class="language-bash">export VIPER_CHAT_MODEL=gpt-4o-mini
+export VIPER_CHAT_URL=https://api.openai.com/v1   # the default
+export VIPER_CHAT_KEY=...                         # or OPENAI_API_KEY
+</code></pre>
+<h2 id="6-writing-a-brief">6. Writing a brief</h2>
+<p>A brief is a TOML file; <code>stations/&lt;station&gt;/brief.example.toml</code> are examples.</p>
+<pre><code class="language-toml">instruction = &quot;put the cube on the pad&quot;          # required: the task
+sim = &quot;rss&quot;                                      # required: the station to search in
+real = &quot;rss&quot;                                     # required: the station to run on
+models = &quot;stations.cube_on_pad:LibraryAuthor&quot;    # the author: &quot;fake&quot; or &quot;module:Class&quot;
+# goal = &quot;(once ...)&quot;                            # optional: the goal, else a template's
 
-[twin.cube]                 # 对场景的估计；诊断会修正它
+[twin.cube]                 # the estimate of the scene, which the diagnosis corrects
 size_mm = 50.0
 
 [settings]
@@ -314,7 +518,7 @@ n_holdout = 100
 search_rounds = 12
 real_episodes = 20
 
-[sim_options]               # 仿真在哪里跑
+[sim_options]               # where the simulator runs
 python = &quot;/root/viper-work/robosimstudio/.venv/bin/python&quot;
 workdir = &quot;/root/viper-work/robosimstudio&quot;
 host = &quot;gpu&quot;
@@ -331,155 +535,175 @@ ssh_config = &quot;~/.ssh/config&quot;
 remote_root = &quot;/root/viper-work/jobs&quot;
 shards = 10
 
-[real_options.truth.cube]   # 替身机器人上的真实场景
+[real_options.truth.cube]   # the true scene on the stand-in robot
 size_mm = 26.0
 </code></pre>
-<p><strong><code>[settings]</code></strong>，不写就用默认值：</p>
+<p><strong><code>[settings]</code></strong>, each with its default:</p>
 <table>
 <thead>
 <tr>
-<th>键</th>
-<th>默认</th>
-<th>含义</th>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>seeds</code></td>
 <td>3</td>
-<td>作者写几个种子</td>
+<td>Seeds the author writes</td>
 </tr>
 <tr>
 <td><code>n_train</code> / <code>n_holdout</code></td>
 <td>96 / 100</td>
-<td>训练实例和留出实例的数量</td>
+<td>Train and holdout instances</td>
 </tr>
 <tr>
 <td><code>search_rounds</code> / <code>width</code> / <code>batch</code></td>
 <td>16 / 4 / 24</td>
-<td>搜索最多几轮、每轮提几个候选、每轮在几个训练实例上评估</td>
+<td>Most search rounds, candidates per round, train instances per round</td>
 </tr>
 <tr>
 <td><code>release_tau</code> / <code>release_min_n</code></td>
 <td>0.8 / 100</td>
-<td>发布关卡：Wilson 下界的阈值，以及最少的关卡回合数</td>
+<td>The release gate: least Wilson lower bound, fewest gate runs</td>
 </tr>
 <tr>
 <td><code>recovery_least</code></td>
 <td>3</td>
-<td>同一个节点至少卡住几次才值得搜恢复（真机卡住一次就够）</td>
+<td>Fewest stuck states at one node worth a recovery; one from the robot is always enough</td>
 </tr>
 <tr>
 <td><code>recovery_rounds</code> / <code>recovery_tau</code></td>
 <td>8 / 0.5</td>
-<td>恢复搜索的轮数，以及恢复子图的保留阈值</td>
+<td>Recovery search rounds, and the bound a kept recovery must reach</td>
 </tr>
 <tr>
 <td><code>recovery_variants</code></td>
 <td>3</td>
-<td>每个卡住的状态扰动出几个副本，用于训练和留出</td>
+<td>Varied copies of each stuck state, for train and for holdout</td>
 </tr>
 <tr>
 <td><code>recovery_probes</code></td>
 <td>48</td>
-<td>带扰动的 probe 回合数，0 表示不跑</td>
+<td>Disturbed runs of the release, 0 for none</td>
 </tr>
 <tr>
 <td><code>real_episodes</code> / <code>real_tau</code></td>
 <td>20 / 0.8</td>
-<td>真机回合数和通过阈值</td>
+<td>Episodes on the robot, and the rate that passes</td>
 </tr>
 <tr>
 <td><code>seed</code></td>
 <td>0</td>
-<td>搜索的随机种子</td>
+<td>The search's random seed</td>
 </tr>
 </tbody>
 </table>
-<p><strong><code>[sim_options]</code> 和 <code>[real_options]</code></strong>：</p>
+<p><strong><code>[sim_options]</code> and <code>[real_options]</code></strong>:</p>
 <table>
 <thead>
 <tr>
-<th>键</th>
-<th>含义</th>
+<th>Key</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>python</code>、<code>workdir</code></td>
-<td>仿真器的 Python 解释器和工作目录，都在跑任务的那台机器上</td>
+<td><code>python</code>, <code>workdir</code></td>
+<td>The simulator's interpreter and working directory, on the machine that runs jobs</td>
 </tr>
 <tr>
-<td><code>host</code>、<code>ssh_config</code></td>
-<td>通过 SSH 去哪台机器跑；不写就在本机跑</td>
+<td><code>host</code>, <code>ssh_config</code></td>
+<td>The SSH host that runs jobs; none runs them here</td>
 </tr>
 <tr>
-<td><code>hosts</code>、<code>gpus</code></td>
-<td>多台机器分担 shard；每个 shard 轮流分配 GPU</td>
+<td><code>hosts</code>, <code>gpus</code></td>
+<td>A pool of hosts that split a job's shards; GPUs shards take in turn</td>
 </tr>
 <tr>
 <td><code>shards</code></td>
-<td>一个任务拆成几个进程</td>
+<td>Worker processes a job is split across</td>
 </tr>
 <tr>
 <td><code>worlds</code></td>
-<td>仅 rss 仿真：每个进程一次批量跑几个世界</td>
+<td>rss simulator only: worlds each process steps as one batch</td>
 </tr>
 <tr>
-<td><code>remote_root</code>、<code>keep_remote</code>、<code>timeout_s</code></td>
-<td>远端任务目录放哪、跑完是否保留、超时时间</td>
+<td><code>remote_root</code>, <code>keep_remote</code>, <code>timeout_s</code></td>
+<td>Where job directories go on the host, whether to keep them, the longest a job may take</td>
 </tr>
 <tr>
 <td><code>env</code></td>
-<td>worker 的环境变量，原样写入，不做 <code>$VAR</code> 展开</td>
+<td>The workers' environment variables, taken literally, with no <code>$VAR</code> expansion</td>
 </tr>
 <tr>
 <td><code>skills</code></td>
-<td>跑任务那台机器上技能库检出目录的路径</td>
+<td>Hub checkouts on the machine that runs jobs</td>
 </tr>
 <tr>
 <td><code>policies</code></td>
-<td><code>{name = {url = "..."}}</code>：检查点服务器（这条路径还没接通，见第 7 节）</td>
+<td><code>{name = {url = "..."}}</code>, checkpoint servers (not wired yet; see section 8)</td>
 </tr>
 <tr>
 <td><code>truth</code></td>
-<td>仅替身机器人：真实场景，覆盖默认场景</td>
+<td>Stand-in robot only: the true scene, over the default one</td>
 </tr>
 <tr>
-<td><code>surveys</code>、<code>film</code></td>
-<td>仅机器人：允许测哪些量；每次执行录几个回合</td>
+<td><code>surveys</code>, <code>film</code></td>
+<td>Robot only: what it may measure; episodes of each execution to film</td>
 </tr>
 </tbody>
 </table>
-<p><strong>其他表</strong>：<code>[randomize]</code>（<code>variants</code>：twin 随机出几个场景，默认 8；<code>tcp_spread_mm</code>：工具点扰动幅度，默认 1.5）、<code>[disturb]</code>（probe 回合里制造的扰动，默认一半回合在搬运中松手；写一张空表就不扰动）、<code>[hub]</code>（见第 7 节）。</p>
-<h2 id="6-在-gpu-上跑-robosimstudio">6. 在 GPU 上跑 RoboSimStudio</h2>
-<p><strong>准备 GPU 主机。</strong> 主机上需要一份 RoboSimStudio 检出和它的虚拟环境，环境里装好 GaP（下面以 <code>/root/viper-work/robosimstudio</code> 为例）。VIPER 会把每个任务目录拷过去，在那个环境里运行 <code>worker.py</code>。</p>
-<p><strong>准备控制端。</strong> 在控制端的 <code>~/.ssh/config</code> 里加一个名叫 <code>gpu</code> 的主机，brief 里的 <code>host = "gpu"</code> 指的就是它：</p>
+<p><strong>Other tables</strong>: <code>[randomize]</code> (<code>variants</code>, the scenes a twin draws from, 8 by
+default; <code>tcp_spread_mm</code>, how far each moves the tool point, 1.5 by default),
+<code>[disturb]</code> (what goes wrong in probe runs, by default a grasp that lets go in
+half of them; an empty table disturbs nothing) and <code>[hub]</code> (section 8).</p>
+<h2 id="7-robosimstudio-on-a-gpu-host">7. RoboSimStudio on a GPU host</h2>
+<p><strong>The GPU host</strong> needs a RoboSimStudio checkout with its virtual environment
+and GaP, such as <code>/root/viper-work/robosimstudio</code>. VIPER copies each job
+directory there and runs <code>worker.py</code> in that environment.</p>
+<p><strong>This machine</strong> needs an SSH host called <code>gpu</code> in <code>~/.ssh/config</code>, which a
+brief's <code>host = "gpu"</code> names:</p>
 <pre><code class="language-text">Host gpu
-  HostName &lt;主机地址&gt;
-  Port &lt;端口&gt;
+  HostName &lt;address&gt;
+  Port &lt;port&gt;
   User root
-  IdentityFile ~/.ssh/&lt;你的私钥&gt;
+  IdentityFile ~/.ssh/&lt;your key&gt;
   ServerAliveInterval 30
   ControlMaster auto
   ControlPath /tmp/gpu_ssh_%C
   ControlPersist 10m
 </code></pre>
-<p>先确认 <code>ssh gpu true</code> 不需要输入密码就能通过，然后：</p>
+<p>Once <code>ssh gpu true</code> passes without a password:</p>
 <pre><code class="language-bash">viper run stations/rss/brief.example.toml --out runs/rss
 </code></pre>
-<p>这份 brief 估计方块是 50 mm，而替身机器人上的方块是 26 mm。预期过程如下：第一版发布在 twin 里通过，到机器人上失败；机器人的相机测出方块尺寸，twin 随之重建；第二版发布在机器人上通过。在一块 RTX 4080 SUPER 上大约 10 到 20 分钟。</p>
-<p>跑得久的运行建议放在 <code>tmux</code> 里，关掉终端也不会中断。万一中断了，<code>viper resume runs/rss</code> 会从断点继续。</p>
-<h2 id="7-借用技能库里的技能">7. 借用技能库里的技能</h2>
-<p><a href="https://github.com/runtime-si/RoboSkillHub">RoboSkillHub</a> 是技能目录。<code>stations/rss/brief.hub.toml</code> 让搜索可以借用其中的 <code>verifying-grasps</code>：抓取后把方块抬起一点，在手腕相机里用 SAM3 找方块，确认它跟着手起来了。俯视相机在这时被手挡住，所以 rss 的默认场景带了一个手腕相机。</p>
-<p><strong>准备工作：</strong></p>
+<p>The brief estimates a 50 mm cube; the stand-in robot's is 26 mm. The first
+release passes in the twin and fails on the robot, the robot's camera measures
+the cube, the twin is rebuilt, and the second release passes on the robot:
+10 to 20 minutes on one RTX 4080 SUPER.</p>
+<p>Run long runs inside <code>tmux</code>, so that closing the terminal does not stop them;
+<code>viper resume runs/rss</code> continues one that stopped.</p>
+<h2 id="8-borrowing-a-skill-from-the-hub">8. Borrowing a skill from the hub</h2>
+<p><a href="https://github.com/runtime-si/RoboSkillHub">RoboSkillHub</a> is the catalog of
+skills. <code>stations/rss/brief.hub.toml</code> lets the search borrow its
+<code>verifying-grasps</code>: after the pick it lifts the cube a little, finds it with
+SAM3 in a wrist camera, and checks that it rose with the hand. The overhead
+camera is blocked by the hand by then, so the rss scene has a wrist camera.</p>
+<p><strong>What it needs:</strong></p>
 <ol>
-<li><strong>控制端有一份技能库检出</strong>，VIPER 从中读 <code>index.json</code>。brief 写的是 <code>index = "../Runtime_Robo_Skill_Lab"</code>，也就是和 VIPER 放在同一级目录。</li>
-<li><strong>GPU 主机也有一份检出</strong>，brief 里的 <code>skills = ["/root/autodl-tmp/hub"]</code> 指向它；技能的脚本和工具包从这里运行。</li>
-<li><strong>SAM3 权重。</strong> <code>facebook/sam3</code> 是受限仓库，需要一个有访问权限的 Hugging Face token。把权重下载到主机的 HF 缓存里，之后离线加载。</li>
-<li><strong>geometry 工具包的环境。</strong> 在主机检出的 <code>tools/geometry</code> 下，环境要事先同步好。</li>
+<li><strong>A hub checkout on this machine</strong>, whose <code>index.json</code> VIPER reads: the
+   brief's <code>index = "../Runtime_Robo_Skill_Lab"</code>, beside VIPER.</li>
+<li><strong>A hub checkout on the GPU host</strong>, the brief's
+   <code>skills = ["/root/autodl-tmp/hub"]</code>, from which the skill's scripts and tool
+   bundles run.</li>
+<li><strong>SAM3's weights.</strong> <code>facebook/sam3</code> is gated: a Hugging Face token with
+   access downloads them into the host's Hugging Face cache, from which the
+   workers load them offline.</li>
+<li><strong>The geometry bundle's environment</strong>, synced in the host checkout's
+   <code>tools/geometry</code>.</li>
 </ol>
-<p>先看看哪些技能这个工位能用：</p>
+<p>What can the station run?</p>
 <pre><code class="language-bash">viper hub search --index ../Runtime_Robo_Skill_Lab --station rss \
   --embodiment panda --serves sam3 --serves geometry --stage verify
 </code></pre>
@@ -487,7 +711,7 @@ size_mm = 26.0
   verifying-grasps     skill  verify   verified,not_held,reached,missed,held,empty,unknown
   verifying-placement  skill  verify   verified,not_placed
 </code></pre>
-<p>brief 里与技能库有关的部分：</p>
+<p>The hub's part of the brief:</p>
 <pre><code class="language-toml">[hub]
 index = &quot;../Runtime_Robo_Skill_Lab&quot;
 embodiment = &quot;panda&quot;
@@ -505,191 +729,289 @@ UV_OFFLINE = &quot;1&quot;
 UV_NO_SYNC = &quot;1&quot;
 ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 </code></pre>
-<p><code>[real_options]</code> 要写同样的 <code>skills</code> 和 <code>env</code>，因为部署的图在机器人上也要运行这个技能。</p>
+<p><code>[real_options]</code> takes the same <code>skills</code> and <code>env</code>, since the deployed graph
+runs the skill on the robot too.</p>
 <pre><code class="language-bash">viper run stations/rss/brief.hub.toml --out runs/rss-hub
 </code></pre>
-<p>在一块 RTX 4080 SUPER 上约 19 分钟。第一版发布借用了验证器，在机器人 26 mm 的方块上失败；twin 按测得的 26.5 mm 重建；第二版发布仍然是借用验证器的种子，在机器人上 20/20，每次抓取都通过了验证。<code>targets/release/&lt;key&gt;/skills.lock</code> 按内容摘要钉住了 <code>verifying-grasps</code>、<code>sam3</code> 和 <code>geometry</code>。</p>
-<p>关于借用的几点说明：</p>
+<p>It takes about 19 minutes on one RTX 4080 SUPER. The first release borrows the
+verifier and fails on the robot's 26 mm cube; the twin is rebuilt from the
+measured 26.5 mm; the second release is again the seed that borrows it, 20/20
+on the robot with every pick verified.
+<code>targets/release/&lt;key&gt;/skills.lock</code> pins <code>verifying-grasps</code>, <code>sam3</code> and
+<code>geometry</code> to their content digests.</p>
+<p>About borrowing:</p>
 <ul>
-<li>种子借用技能的方式，是加一个 <code>skill</code> 字段写着技能名的子图；技能库里的内容从不被修改。</li>
-<li>运行前的检查会拒绝工位跑不了的借用，比如缺工具、或者没有提供它需要的工具包。</li>
-<li>检查点（π0.5、在别处微调的模型等）设计上是一个调用策略服务器的 GaP 节点，由 <code>policies</code> 选项指定。目前 hub 能判断哪个检查点有服务器，<code>policies</code> 也会写进 <code>job.json</code>，但 rss 的 worker 还没把它接到 GaP 上。</li>
+<li>A seed borrows a skill as a subgraph whose <code>skill</code> names it; the hub is
+  never edited.</li>
+<li>The checks before a candidate runs rule out a borrowed skill the station
+  cannot run, such as one that needs a tool or a tool bundle it lacks.</li>
+<li>A checkpoint, such as π0.5 or a model fine-tuned elsewhere, is meant to be a
+  GaP node that talks to a policy server, named by <code>policies</code>. The hub already
+  judges which checkpoints have a server, and <code>policies</code> reaches <code>job.json</code>,
+  but the rss worker does not pass it to GaP yet.</li>
 </ul>
-<h2 id="8-运行目录里有什么">8. 运行目录里有什么</h2>
+<h2 id="9-what-a-run-directory-holds">9. What a run directory holds</h2>
 <pre><code class="language-text">runs/&lt;name&gt;/
-  inputs/brief/             brief
-  inputs/survey_requests/   诊断要机器人去测的量
-  inputs/twin_fixes/        真机测得的修正
-  inputs/regressions/       twin 能复现的真机失败；以后每次发布都必须通过
-  inputs/recovery_seeds/    twin 不能复现的真机失败卡住的状态
-  inputs/seeds/             搜索的额外起点，比如导入的包
-  targets/&lt;目标&gt;/&lt;key&gt;/      每次构建一个目录，写完不再改动
-  state.json                每个目标当前用的是哪次构建
-  ledger.jsonl              按时间记下每次输入、构建、关卡和路由
-  versions/v0001/ ...       版本包
-  report/index.html         viper show 生成的页面
+  inputs/brief/             the brief
+  inputs/survey_requests/   what the diagnosis asked the robot to measure
+  inputs/twin_fixes/        corrections measured on the robot
+  inputs/regressions/       real failures the twin reproduces, which every later release must pass
+  inputs/recovery_seeds/    where real failures the twin does not reproduce got stuck
+  inputs/seeds/             more policies to search from, such as an imported package's
+  targets/&lt;target&gt;/&lt;key&gt;/   one directory per build, never changed once written
+  state.json                the current build of each target
+  ledger.jsonl              every input, build, gate and route, in order
+  versions/v0001/ ...       the saved versions
+  report/index.html         what viper show writes
+  live/                     what the live page reads: log.jsonl, now.json (where the run is),
+                            control.json (pause or stop), run.log, chat.jsonl (Vi's conversation)
 </code></pre>
-<p>最常看的文件：</p>
+<p>The files you will look at most:</p>
 <table>
 <thead>
 <tr>
-<th>文件</th>
-<th>内容</th>
+<th>File</th>
+<th>What it holds</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>targets/release/&lt;key&gt;/graph/</code></td>
-<td>策略图：<code>workflow.json</code>（节点、边、子图、路由）、<code>params.json</code>（可调输入的范围和步长）、<code>scripts/</code></td>
+<td>The policy: <code>workflow.json</code> (nodes, edges, subgraphs, routes), <code>params.json</code> (each tunable input's range and step), <code>scripts/</code></td>
 </tr>
 <tr>
 <td><code>targets/release/&lt;key&gt;/release.json</code></td>
-<td>谁胜出、它的谱系、关卡结果</td>
+<td>Which candidate won, its lineage and its gate</td>
 </tr>
 <tr>
 <td><code>targets/release/&lt;key&gt;/search/tree.json</code></td>
-<td>整棵搜索树：每个候选是谁改出来的、状态如何</td>
+<td>The search tree: which edit wrote each candidate, and how it fared</td>
 </tr>
 <tr>
 <td><code>targets/release/&lt;key&gt;/skills.lock</code></td>
-<td>用到的技能包和它们的摘要</td>
+<td>The hub bundles the policy runs, at their digests</td>
 </tr>
 <tr>
 <td><code>targets/recoveries/&lt;key&gt;/graph/</code></td>
-<td>部署的图（release 加上恢复子图）</td>
+<td>The deployed graph: the release with its recoveries</td>
 </tr>
 <tr>
 <td><code>targets/real/&lt;key&gt;/rollouts.json</code></td>
-<td>每个真机回合：成功与否、怪哪个节点、观测值、起止状态</td>
+<td>Every episode on the robot: success, the node blamed, the observations, start and end states</td>
 </tr>
 </tbody>
 </table>
-<h2 id="9-真机失败之后诊断的四条路">9. 真机失败之后：诊断的四条路</h2>
-<p>真机失败，说明下面两种情况至少有一种：要么 twin 和机器人不一样，要么策略在某个情况下没练到。不同的原因要在不同的阶段修，全部重来既慢，又学不到东西。诊断（<code>viper/stages/diagnose.py</code>）依次问几个问题，把每个失败送到能修它的地方。</p>
+<h2 id="10-after-the-robot-fails-the-four-routes">10. After the robot fails: the four routes</h2>
+<p>A failure on the robot means the twin differs from the robot, or the policy
+was never tried in that situation, or both. Each cause is fixed in a different
+stage, and starting over is slow and learns nothing. The diagnosis
+(<code>viper/stages/diagnose.py</code>) asks a few questions in turn and sends each
+failure where it can be fixed.</p>
 <pre class="mermaid">flowchart TD
-  f[&quot;真机失败的回合&quot;] --&gt; q1{&quot;某个测量量的中位数&lt;br/&gt;落在 twin 的随机范围外？&quot;}
-  q1 --&gt;|是| tf[&quot;twin_fixes&quot;]
-  q1 --&gt;|否| rp[&quot;最多取 8 个失败回合&lt;br/&gt;从它们的起始状态在 twin 里重放部署的图&quot;]
-  rp --&gt; q2{&quot;twin 里也失败？&quot;}
-  q2 --&gt;|是| rg[&quot;regressions&quot;]
-  q2 --&gt;|否| un[&quot;未解释的失败&quot;]
-  un --&gt; q3{&quot;机器人报告了卡住时的状态？&quot;}
-  q3 --&gt;|是| rs[&quot;recovery_seeds&quot;]
-  un --&gt; q4{&quot;机器人还有没测过的量？&quot;}
-  q4 --&gt;|是| sr[&quot;survey_requests&quot;]
-  q3 --&gt;|否| q5{&quot;四条路都没走？&quot;}
-  q4 --&gt;|否| q5
-  q5 --&gt;|是| stop([&quot;停下，并写明原因&quot;])
+  f[&quot;failed episodes on the robot&quot;] --&gt; q1{&quot;Is a measured quantity's median&lt;br/&gt;outside the twin's range?&quot;}
+  q1 --&gt;|yes| tf[&quot;twin_fixes&quot;]
+  q1 --&gt;|no| rp[&quot;replay up to 8 failed episodes in the twin&lt;br/&gt;from their start states, with the deployed graph&quot;]
+  rp --&gt; q2{&quot;Does the twin fail too?&quot;}
+  q2 --&gt;|yes| rg[&quot;regressions&quot;]
+  q2 --&gt;|no| un[&quot;unexplained failures&quot;]
+  un --&gt; q3{&quot;Did the robot say where it stopped?&quot;}
+  q3 --&gt;|yes| rs[&quot;recovery_seeds&quot;]
+  un --&gt; q4{&quot;Can the robot measure something it has not?&quot;}
+  q4 --&gt;|yes| sr[&quot;survey_requests&quot;]
+  q3 --&gt;|no| q5{&quot;No route at all?&quot;}
+  q4 --&gt;|no| q5
+  q5 --&gt;|yes| stop([&quot;stop, and say why&quot;])
 </pre>
-<h3 id="twin_fixestwin-的数值错了">twin_fixes：twin 的数值错了</h3>
-<p><strong>条件。</strong> 机器人每个回合都会记录它测到的量（<code>observations</code>），比如相机读出的方块尺寸、深度噪声、工具点偏差。twin 对每个量都有一个随机化范围（<code>twin/&lt;key&gt;/support.json</code>）。如果所有回合读数的中位数落在这个范围之外，就说明 twin 本身错了。</p>
-<p><strong>写下什么。</strong> 测量值，以及读数的离散度（<code>doubt</code>）。演示里那条：</p>
+<h3 id="twin_fixes-the-twin-has-a-number-wrong">twin_fixes: the twin has a number wrong</h3>
+<p><strong>When.</strong> The robot records what it measures on every episode
+(<code>observations</code>): the cube's size as its camera reads it, the depth noise, the
+tool point's offset. The twin randomises each quantity over a range
+(<code>twin/&lt;key&gt;/support.json</code>). When the median reading lies outside that range,
+the twin is wrong.</p>
+<p><strong>What is written.</strong> The median, and how far the readings spread (<code>doubt</code>).
+The demo's:</p>
 <pre><code class="language-json">{&quot;measured&quot;: {&quot;tcp_bias_mm&quot;: 6.509}, &quot;doubt&quot;: {&quot;tcp_bias_mm&quot;: 1.1456}, &quot;real&quot;: &quot;ef77440484e935d6&quot;}
 </code></pre>
-<p><strong>接下来重建什么。</strong> <code>twin</code> 按测量值重建，新的随机范围以测量值为中心（方块尺寸取测量值 ± max(3 × doubt, 1 mm)）。<code>release</code> 重新搜索，上一版发布也作为种子之一。如果修正的量不进入 <code>twin/facts.json</code>（方块尺寸、深度噪声），<code>task</code> 保持不变；工具点偏差会进入 facts，<code>task</code> 会重建，但写出的目标不变。</p>
-<p><strong>为什么只走这一条。</strong> twin 都错了，在 twin 里重放失败的回合就没有意义。所以发现 twin 修正时，诊断只返回这一条，其余留到下一轮。</p>
-<p><strong>例子。</strong> 演示里 twin 覆盖 [-2.5, 2.5]，测得 6.509 mm。基准场景 <code>size_blind</code> 里 twin 覆盖 [45, 55]，测得方块 25.99 mm；修正之后，第二版发布 20/20。</p>
-<h3 id="regressionstwin-没错策略在这个情况下没练好">regressions：twin 没错，策略在这个情况下没练好</h3>
-<p><strong>条件。</strong> twin 的数值没问题，那就把失败回合的起始状态（比如方块的位置和朝向）放回 twin，用部署的图重放。如果 twin 里也失败，说明 twin 已经能表现这种情况，只是搜索时的训练和留出实例碰巧没覆盖到，或者覆盖得太少。</p>
-<p><strong>写下什么。</strong> 起始状态和失败的位置，比如 <code>{"instance": "real/7", "state": {...}, "blame": "pick_sg/locate"}</code>。</p>
-<p><strong>接下来重建什么。</strong> 每条记录变成一个固定的实例 <code>regression/&lt;k&gt;</code>，加进以后每次搜索的每个训练批次和发布关卡。以后任何一版发布都必须通过它，策略不会再"忘掉"这个情况。重建的是 <code>release</code>、<code>recoveries</code>、<code>real</code>。同一个状态只记一次。</p>
-<p><strong>例子。</strong> 我们的基准里还没有出现过，因为训练和留出实例已经把出生区域覆盖得很好。一个典型的情形（假设的例子）是：方块偶尔出现在出生区域的角落、手要伸得很远，这样的起始状态在 100 个留出实例里很少抽到；真机碰上了，twin 重放也失败，它就成了回归实例。</p>
-<h3 id="recovery_seedstwin-不复现但知道卡在哪">recovery_seeds：twin 不复现，但知道卡在哪</h3>
-<p><strong>条件。</strong> twin 里重放成功、真机却失败，说明机器人和 twin 在某个 twin 没有建模的地方不同，比如抓取打滑、摩擦不一样、工具点偏了。如果机器人报告了它放弃时世界的状态（<code>end_state</code>：机械臂关节、方块位姿、夹爪开度），这个状态就是一个恢复的起点。</p>
-<p><strong>写下什么。</strong> 卡住时的状态和失败位置。基准场景 <code>slip_reactive</code> 里的一条：方块在搬运中滑落，掉在垫子旁边，放置验证失败：</p>
+<p><strong>What is rebuilt.</strong> <code>twin</code>, from the measurement, now randomised around it
+(a cube's size over the measurement ± max(3 × doubt, 1 mm)). <code>release</code> searches
+again, with the previous release among its seeds. A quantity that is not in
+<code>twin/facts.json</code>, a cube's size or the depth noise, leaves <code>task</code> alone; a
+tool-point offset is a fact, so <code>task</code> is rebuilt, to the same goal.</p>
+<p><strong>Why it comes alone.</strong> Replaying failures in a twin that is wrong tells
+nothing, so a diagnosis that finds a fix returns only the fix and leaves the
+rest to the next round.</p>
+<p><strong>Examples.</strong> In the demo, the twin covers [-2.5, 2.5] and the robot measures
+6.509 mm. In the <code>size_blind</code> benchmark, the twin covers [45, 55] and the robot
+measures a 25.99 mm cube; after the fix, the second release does 20/20.</p>
+<h3 id="regressions-the-twin-is-right-the-policy-was-not-tried-there">regressions: the twin is right, the policy was not tried there</h3>
+<p><strong>When.</strong> With the twin's numbers right, each failed episode's start state,
+such as where the cube was and which way it faced, is replayed in the twin with
+the deployed graph. When the twin fails too, the twin already holds the
+situation; the search's train and holdout instances just missed it, or met it
+too rarely.</p>
+<p><strong>What is written.</strong> The start state and where it failed, such as
+<code>{"instance": "real/7", "state": {...}, "blame": "pick_sg/locate"}</code>.</p>
+<p><strong>What is rebuilt.</strong> Each entry becomes a fixed instance, <code>regression/&lt;k&gt;</code>,
+that joins every train batch and every gate of every later search, so no later
+release can pass without it and the policy cannot forget it. <code>release</code>,
+<code>recoveries</code> and <code>real</code> are rebuilt. A state is routed once.</p>
+<p><strong>Example.</strong> None of the benchmarks has needed one yet: the train and holdout
+instances cover the spawn region well. A typical case, for illustration: a cube
+in a far corner of the spawn region, rarely drawn among 100 holdout instances,
+fails on the robot and fails again in the twin's replay, and so becomes a
+regression instance.</p>
+<h3 id="recovery_seeds-the-twin-does-not-fail-but-the-robot-said-where-it-stopped">recovery_seeds: the twin does not fail, but the robot said where it stopped</h3>
+<p><strong>When.</strong> The twin's replay succeeds where the robot failed: the robot differs
+from the twin in something the twin does not model, such as a grasp that slips,
+other friction, or a tool point that lands off. When the robot reported the
+state it gave up in (<code>end_state</code>: the arm's joints, the cube's pose, the
+gripper), that state is where a recovery starts.</p>
+<p><strong>What is written.</strong> That state and where it failed. One from the
+<code>slip_reactive</code> benchmark, where the cube slipped in transport and fell beside
+the pad, so placing failed its check:</p>
 <pre><code class="language-json">{&quot;blame&quot;: &quot;place_sg/verify&quot;, &quot;instance&quot;: &quot;real/1&quot;,
  &quot;state&quot;: {&quot;arm&quot;: [...], &quot;cube&quot;: [0.02579, -0.09174, 0.01299, 1.55334], &quot;fingers&quot;: 0.04, &quot;grip&quot;: 0.04}}
 </code></pre>
-<p><strong>接下来重建什么。</strong> 只重建 <code>recoveries</code> 和 <code>real</code>，<code>release</code> 保留。<code>recoveries</code> 从这些状态（以及它们的扰动副本）出发，搜一条恢复链：先把方块重新抓起来，再放一次。然后把它接到放置的失败出口上。没出错的回合走的仍是原图。</p>
-<p><strong>例子。</strong> <code>slip_reactive</code> 里，twin 不制造打滑，所以只有机器人能发现。第一次真机 12/20，8 个卡住的状态成为恢复起点，第二次 20/20。</p>
-<h3 id="survey_requeststwin-不复现让机器人去测还没测的量">survey_requests：twin 不复现，让机器人去测还没测的量</h3>
-<p><strong>条件。</strong> 同样是 twin 不复现的失败。有些量要让机械臂动起来才能测，比如工具点偏差：手伸到几个点，用相机看它实际到了哪里。所以 <code>survey</code> 平时不测这类量，只有被要求时才测。如果机器人能测、又还没测过，就提出要求。</p>
-<p><strong>写下什么。</strong> 要测的量，比如 <code>{"quantities": ["tcp_bias_mm"], "real": "..."}</code>。</p>
-<p><strong>接下来重建什么。</strong> 先是 <code>survey</code>：机器人去测。然后是 <code>twin</code>：按测量结果重建。之后 <code>task</code>、<code>release</code> 等依次跟上。</p>
-<p><strong>例子。</strong> 基准场景 <code>bias</code> 里，工具点在 y 方向偏了 35 mm，相机看不出来。第一次真机 0/20，twin 重放 8 个失败一个都没复现，于是要求测 <code>tcp_bias_mm</code>。三次伸手测出 33.2 mm，twin 带上这个偏差重建，作者让每个规划节点反向瞄准 33.2 mm，第二次真机 20/20。同一轮里，这些失败也作为 recovery_seeds 记了下来。<code>slip_reactive</code> 里同样的请求测出的是 0，相当于排除了一个可能，闭环接着靠恢复子图解决。</p>
-<h3 id="什么时候停下">什么时候停下</h3>
-<p>下面两种情况，闭环会停下，并在 <code>ledger.jsonl</code> 的 <code>stopped</code> 记录里写明原因（<code>viper show</code> 的报告也会显示；<code>viper status</code> 显示的是最后那道失败的关卡）：</p>
+<p><strong>What is rebuilt.</strong> <code>recoveries</code> and <code>real</code> only; the release is kept.
+<code>recoveries</code> searches from those states, and from varied copies of them, for a
+chain that picks the cube up again and places it, and splices it onto the
+failure exit of placing. An episode that does not fail there runs the release
+unchanged.</p>
+<p><strong>Example.</strong> In <code>slip_reactive</code> the twin makes nothing slip, so only the robot
+finds the slips: 12/20 on the first run, 8 stuck states become where recoveries
+start, and 20/20 on the second.</p>
+<h3 id="survey_requests-the-twin-does-not-fail-so-measure-what-has-not-been">survey_requests: the twin does not fail, so measure what has not been</h3>
+<p><strong>When.</strong> Again a failure the twin does not reproduce. Some quantities are
+measured only by moving the arm, such as the tool point's offset, read by
+reaching to a few points and seeing by camera where the hand arrived, so the
+<code>survey</code> measures them only when asked. When the robot can measure such a
+quantity and has not, the diagnosis asks.</p>
+<p><strong>What is written.</strong> The quantities, such as
+<code>{"quantities": ["tcp_bias_mm"], "real": "..."}</code>.</p>
+<p><strong>What is rebuilt.</strong> <code>survey</code>, where the robot measures; then <code>twin</code> from what
+it found; then <code>task</code>, <code>release</code> and the rest.</p>
+<p><strong>Examples.</strong> In the <code>bias</code> benchmark the tool point lands 35 mm off in y, which
+the camera does not see. The first run does 0/20, and the twin reproduces none
+of 8 failures, so the diagnosis asks for <code>tcp_bias_mm</code>. Three reaches measure
+33.2 mm, the twin is rebuilt with that offset, the author aims every planning
+node 33.2 mm the other way, and the second run does 20/20. The same failures
+were also routed as recovery seeds that round. In <code>slip_reactive</code> the same
+request measured 0, which ruled the offset out, and the recoveries fixed the
+rest.</p>
+<h3 id="when-the-loop-stops">When the loop stops</h3>
+<p>The loop stops, recording why in a <code>stopped</code> entry of <code>ledger.jsonl</code> (which
+<code>viper show</code> also shows; <code>viper status</code> shows the last gate that failed), when:</p>
 <ul>
-<li>twin 一个失败都没复现，失败回合又没有报告卡住的状态，机器人也没有可测的了。这说明差异出在没人能测的东西上。</li>
-<li>所有失败都已经被路由过，这一轮没有新东西可送。</li>
+<li>the twin reproduces none of the failures, none reported where it stopped,
+  and the robot has nothing left to measure: the robot differs from the twin
+  in something nothing measures; or</li>
+<li>every failure has been routed before, and the round has nothing new.</li>
 </ul>
-<p><strong>例子。</strong> <code>bias_blind</code> 和 <code>bias</code> 一样偏 35 mm，但机器人不能伸手测量。恢复子图从卡住的状态重新抓取，同样的偏差还在，照样抓空。三轮之后，诊断没有新东西可送，停下：<code>real success 0.00 is below 0.8; the diagnosis has nothing new to route</code>。</p>
-<h3 id="汇总">汇总</h3>
+<p><strong>Example.</strong> <code>bias_blind</code> lands 35 mm off like <code>bias</code>, on a robot that cannot
+reach to measure. Recoveries from where it got stuck pick again with the same
+offset and miss again, and after three rounds the loop stops with
+<code>real success 0.00 is below 0.8; the diagnosis has nothing new to route</code>.</p>
+<h3 id="in-short">In short</h3>
 <table>
 <thead>
 <tr>
-<th>路线</th>
-<th>条件</th>
-<th>重建</th>
-<th>基准里的例子</th>
+<th>Route</th>
+<th>When</th>
+<th>Rebuilds</th>
+<th>Benchmarks that take it</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>twin_fixes</code></td>
-<td>测量值超出 twin 范围</td>
-<td>twin 及下游</td>
-<td><code>size_blind</code>、<code>noise_blind</code>、演示</td>
+<td>A measurement lies outside the twin's range</td>
+<td>the twin and what follows</td>
+<td><code>size_blind</code>, <code>noise_blind</code>, the demo</td>
 </tr>
 <tr>
 <td><code>regressions</code></td>
-<td>twin 重放也失败</td>
-<td>release、recoveries、real</td>
-<td>尚未出现</td>
+<td>The twin's replay fails too</td>
+<td>release, recoveries, real</td>
+<td>none yet</td>
 </tr>
 <tr>
 <td><code>recovery_seeds</code></td>
-<td>twin 重放成功，且知道卡在哪</td>
-<td>recoveries、real</td>
-<td><code>slip_reactive</code>、<code>bias</code></td>
+<td>The twin's replay succeeds, and the robot said where it stopped</td>
+<td>recoveries, real</td>
+<td><code>slip_reactive</code>, <code>bias</code></td>
 </tr>
 <tr>
 <td><code>survey_requests</code></td>
-<td>twin 重放成功，且机器人还能测更多</td>
-<td>survey 及下游</td>
-<td><code>bias</code>、<code>slip_reactive</code></td>
+<td>The twin's replay succeeds, and the robot can measure more</td>
+<td>the survey and what follows</td>
+<td><code>bias</code>, <code>slip_reactive</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="10-基准套件">10. 基准套件</h2>
-<p><code>benchmarks/suite.toml</code> 里每个场景对应 twin 和机器人之间的一种差异，并且各有一个关掉某项能力的对照。</p>
-<pre><code class="language-bash">cp benchmarks/host.example.toml benchmarks/host.toml    # 改成你的主机
+<h2 id="11-the-benchmark-suite">11. The benchmark suite</h2>
+<p><code>benchmarks/suite.toml</code> holds one brief per gap between the twin and the
+robot, each beside a twin of it with one capability turned off.</p>
+<pre><code class="language-bash">cp benchmarks/host.example.toml benchmarks/host.toml    # name your host
 python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
-<p>八个场景依次跑，约 50 分钟；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/feat/stations/README.zh-CN.md#基准测试">README</a>。</p>
-<h2 id="11-扩展">11. 扩展</h2>
-<p><strong>接一个 LLM 作者。</strong> 写一个类，实现 <code>viper/models.py</code> 里的两个协议，brief 里写 <code>models = "my_pkg.authors:LlmAuthor"</code>：</p>
+<p>The eight scenarios run one after another in about 50 minutes; the latest
+results are in the <a href="https://github.com/runtime-si/VIPER_Temp/blob/feat/stations/README.md#benchmarks">README</a>.</p>
+<h2 id="12-extending-viper">12. Extending VIPER</h2>
+<p><strong>A language-model author.</strong> A class with the two protocols of
+<code>viper/models.py</code>, named in the brief as
+<code>models = "my_pkg.authors:LlmAuthor"</code>:</p>
 <pre><code class="language-python">class LlmAuthor:
-    edit_kinds = (&quot;script&quot;, &quot;recovery&quot;, &quot;topology&quot;)   # 它能写的结构编辑
+    edit_kinds = (&quot;script&quot;, &quot;recovery&quot;, &quot;topology&quot;)  # the structural edits it writes
 
     def write_task(self, brief, facts):
-        &quot;&quot;&quot;返回 {&quot;instruction&quot;, &quot;goal&quot;, &quot;objects&quot;}；goal 用任务语言写。&quot;&quot;&quot;
+        &quot;&quot;&quot;Return {&quot;instruction&quot;, &quot;goal&quot;, &quot;objects&quot;}, the goal in the task language.&quot;&quot;&quot;
 
     def seed(self, task, facts, out, index):
-        &quot;&quot;&quot;把第 index 个种子图写进空目录 out。facts 里有 objects、support，
-        有技能库时还有 skills。&quot;&quot;&quot;
+        &quot;&quot;&quot;Write the index-th seed graph into the empty directory out. facts has
+        objects and support, and skills with a hub.&quot;&quot;&quot;
 
     def edit(self, graph, *, kind, failures):
-        &quot;&quot;&quot;原地修改 graph（父图的副本）；没有可提的编辑就返回 False。&quot;&quot;&quot;
+        &quot;&quot;&quot;Edit graph, a copy of the parent, in place; False when there is no edit.&quot;&quot;&quot;
 </code></pre>
-<p><strong>接一个新仿真器或真机。</strong> 新建 <code>stations/&lt;名字&gt;/</code>：</p>
+<p><strong>A new simulator or robot.</strong> A package <code>stations/&lt;name&gt;/</code> with:</p>
 <ul>
-<li><code>station.toml</code>：<code>name</code>、<code>description</code>、<code>provides = ["sim", "real"]</code>、<code>tools</code>（两边都提供的工具），以及 <code>[sim] tools</code>（仅仿真提供的真值工具）。</li>
-<li><code>__init__.py</code>：提供 <code>make_sim(spec, options)</code> 和 <code>make_real(spec, options)</code>。</li>
-<li><strong>仿真一侧</strong>要实现 <code>build_twin</code>、<code>check_twin</code>、<code>check_goal</code>、<code>rehearse</code>；可选 <code>film</code>、<code>starts_from_states</code>、<code>vary</code>。</li>
-<li><strong>机器人一侧</strong>要实现 <code>execute</code>；可选 <code>survey</code> 和 <code>surveys</code>。</li>
+<li><code>station.toml</code>: <code>name</code>, <code>description</code>, <code>provides = ["sim", "real"]</code>,
+  <code>tools</code>, the tools both sides provide, and <code>[sim] tools</code>, the simulator's
+  own ground truth.</li>
+<li><code>__init__.py</code> with <code>make_sim(spec, options)</code> and <code>make_real(spec, options)</code>.</li>
+<li><strong>The simulator</strong> implements <code>build_twin</code>, <code>check_twin</code>, <code>check_goal</code> and
+  <code>rehearse</code>, and may add <code>film</code>, <code>starts_from_states</code> and <code>vary</code>.</li>
+<li><strong>The robot</strong> implements <code>execute</code>, and may add <code>survey</code> and <code>surveys</code>.</li>
 </ul>
-<p>协议写在 <code>viper/station.py</code>。最简单的做法是照 <code>stations/bullet/</code> 改：它通过任务目录运行 worker，VIPER 和仿真器之间只传 <code>job.json</code> 和 <code>results-*.jsonl</code>。</p>
-<h2 id="12-常见问题">12. 常见问题</h2>
-<p><strong><code>ssh: Could not resolve hostname gpu</code></strong>：<code>~/.ssh/config</code> 里没有 <code>Host gpu</code>。加上第 6 节那段，或者把 brief 里的 <code>ssh_config</code> 指向一个有它的文件。</p>
-<p><strong>geometry 工具包起不来，报 <code>uv: command not found</code></strong>：非交互的 SSH 只有很短的 PATH。在 <code>[sim_options.env]</code> 里把 PATH 完整写出来，包含 <code>uv</code> 所在的目录（<code>env</code> 原样写入，不展开 <code>$PATH</code>）。</p>
-<p><strong>同步 geometry 环境时 <code>uv sync</code> 卡住</strong>：它在递归拉取 GaP 的子模块，有好几 GB。可以先在技能库检出里用 <code>uv export --frozen --no-hashes --no-emit-package graph-as-policy-core</code> 导出依赖清单，在 <code>tools/geometry/.venv</code> 里按清单安装，再单独装一份本地的 <code>gap-core</code>。</p>
-<p><strong>SAM3 去联网，或者悄悄退回颜色匹配</strong>：设 <code>HF_HUB_CACHE</code> 指向权重所在的缓存，<code>HF_HUB_OFFLINE=1</code>，并设 <code>ROBOSIMSTUDIO_SEGMENTATION_BACKEND=sam3</code>，这样出错时会直接报错。</p>
-<p><strong>验证器总是返回 <code>not_held</code></strong>：俯视相机被手挡住了。验证器先看手腕相机 <code>eye_in_hand</code>，rss 的默认场景里有这个相机；自定义场景时别把它去掉。</p>
-<p><strong>关掉终端后运行没了</strong>：放进 <code>tmux</code>，或用 <code>viper resume DIR</code> 接着跑。</p>
-<p><strong>rss 的运行没有视频</strong>：rss 的 worker 还没有实现录像，<code>bullet</code> 和 <code>sapien</code> 会录。</p>
-<p><strong>改了一个设置，为什么整个 release 都重建了</strong>：release 的版本包含仿真器、作者、搜索设置和技能库，任何一项变了都会重建；twin 和 task 不受影响。</p>
+<p>The protocols are in <code>viper/station.py</code>. <code>stations/bullet/</code> is the shortest to
+start from: it runs a worker through job directories, so only <code>job.json</code> and
+<code>results-*.jsonl</code> cross between VIPER and the simulator.</p>
+<h2 id="13-troubleshooting">13. Troubleshooting</h2>
+<p><strong><code>ssh: Could not resolve hostname gpu</code>.</strong> <code>~/.ssh/config</code> has no <code>Host gpu</code>.
+Add the block in section 7, or point the brief's <code>ssh_config</code> at a file that
+has one.</p>
+<p><strong>The geometry bundle fails with <code>uv: command not found</code>.</strong> A non-interactive
+SSH login has a short PATH. Spell PATH out in <code>[sim_options.env]</code>, with the
+directory <code>uv</code> is in; <code>env</code> is taken literally and does not expand <code>$PATH</code>.</p>
+<p><strong><code>uv sync</code> hangs while syncing the geometry environment.</strong> It is cloning
+GaP's submodules, several GB of them. Export the pinned requirements in the
+hub checkout with
+<code>uv export --frozen --no-hashes --no-emit-package graph-as-policy-core</code>,
+install them into <code>tools/geometry/.venv</code>, then install a local <code>gap-core</code>.</p>
+<p><strong>SAM3 reaches for the network, or quietly falls back to colour matching.</strong>
+Set <code>HF_HUB_CACHE</code> to the cache that holds the weights, <code>HF_HUB_OFFLINE=1</code>,
+and <code>ROBOSIMSTUDIO_SEGMENTATION_BACKEND=sam3</code>, so that a failure fails loudly.</p>
+<p><strong>The verifier always routes <code>not_held</code>.</strong> The hand blocks the overhead camera.
+The verifier looks through the <code>eye_in_hand</code> wrist camera first, which the rss
+scene has; keep it in a scene of your own.</p>
+<p><strong>A run stops when the terminal closes.</strong> Run it in <code>tmux</code>, or continue it with
+<code>viper resume DIR</code>.</p>
+<p><strong>rss runs have no films.</strong> The rss worker does not film yet; <code>bullet</code> and
+<code>sapien</code> do.</p>
+<p><strong>Changing one setting rebuilt the whole release.</strong> A release's version digests
+the simulator, the author, the search settings and the hub, so a change to any
+of them rebuilds it; the twin and the task are kept.</p>
 </main>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
