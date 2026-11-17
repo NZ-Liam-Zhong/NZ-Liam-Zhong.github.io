@@ -105,9 +105,8 @@ img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radiu
 <p>每个目标的构建键由它的版本和所有依赖的内容摘要组成。键没变就跳过，变了就重建，下游跟着重建。诊断唯一做的事是往 <code>inputs/</code> 下的某个目录追加一条记录，依赖它的目标因此变旧，下一轮只重建这些。</p>
 <h2 id="2-安装">2. 安装</h2>
 <p>需要 Python 3.11 或 3.12，以及 <a href="https://docs.astral.sh/uv/">uv</a>。VIPER 本身只用标准库，仿真器在各自的 Python 环境里运行，VIPER 从不 import 它们。</p>
-<pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER_Temp.git
-cd VIPER_Temp
-git checkout feat/stations          # PR #2 合并之前
+<pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER.git
+cd VIPER
 uv venv --python 3.11 &amp;&amp; source .venv/bin/activate
 uv pip install -e &quot;.[test]&quot;
 viper stations
@@ -115,6 +114,7 @@ viper stations
 <p><code>viper stations</code> 列出装好的工位：</p>
 <pre><code class="language-text">bullet       real+sim   PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
 fake         real+sim   A toy cube-to-plate world in plain Python, for tests and the demo
+libero       real+sim   LIBERO on MuJoCo: a benchmark task stands in for the robot, its scene is the twin
 rss          real+sim   RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
 sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
 </code></pre>
@@ -147,9 +147,14 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td>SAPIEN 3（PhysX 5）</td>
 <td><code>sapien</code>、<code>pybullet_data</code>、<code>numpy</code>、GaP，以及支持 Vulkan 的 GPU</td>
 </tr>
+<tr>
+<td><code>libero</code></td>
+<td>LIBERO（MuJoCo，经 robosuite 1.4）</td>
+<td>LIBERO 检出、<code>robosuite==1.4.1</code>、MuJoCo、GaP 和 EGL（见第 11 节）</td>
+</tr>
 </tbody>
 </table>
-<p>后三个摆的是同一个任务（Panda 用相机找方块、放到垫子上），工具名一致，所以一张图能在任意一个上跑，也可以在 A 里搜索、在 B 上执行。目前所有工位的"真机"都是替身：用真实场景参数建的同一个仿真器。</p>
+<p><code>rss</code>、<code>bullet</code>、<code>sapien</code> 摆的是同一个任务（Panda 用相机找方块、放到垫子上），工具名一致，所以一张图能在任意一个上跑，也可以在 A 里搜索、在 B 上执行。它们的"真机"都是替身：用真实场景参数建的同一个仿真器。<code>libero</code> 则让一个公开基准站在真机的位置上：从基准自己的初始状态出发，用基准自己的成功判定打分。</p>
 <p>跑测试：</p>
 <pre><code class="language-bash">uv run pytest -q tests
 </code></pre>
@@ -726,6 +731,31 @@ python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
 <p>八个场景依次跑，约 50 分钟；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#基准测试">README</a>。</p>
+<h3 id="把-libero-object-当作真机">把 LIBERO-Object 当作真机</h3>
+<p><a href="https://github.com/Lifelong-Robot-Learning/LIBERO">LIBERO</a> 为每个任务提供 50 个初始状态和一个成功判定。<code>libero</code> 工位让一个任务站在真机的位置上：<code>real</code> 从基准自己的初始状态出发执行策略，每个 episode 都由 LIBERO 自己的判定打分。twin 是同一个任务的场景，但物体摆放由 LIBERO 重新采样，所以搜索从来见不到真机打分用的初始状态。两边都不直接把物体位姿交给策略：策略读取相机的深度图和仿真器的逐像素标签（代替检测器），自己从中找出每个物体，手到了物体上方后再用腕部相机看一次。孪生的扰动探针会让夹爪在搬运中松手，所以每个任务在上真机之前也会先搜一段恢复子图。</p>
+<p>worker 需要 GPU 主机上一个独立的 Python，装好 LIBERO、robosuite 1.4.1、MuJoCo 和 GaP：</p>
+<pre><code class="language-bash">git clone --depth 1 https://github.com/Lifelong-Robot-Learning/LIBERO.git
+uv venv .venv -p 3.11
+uv pip install -p .venv --index-url https://download.pytorch.org/whl/cpu torch
+uv pip install -p .venv &quot;numpy&lt;2&quot; robosuite==1.4.1 mujoco==3.1.6 bddl==1.0.1 \
+    easydict gym==0.25.2 future cloudpickle matplotlib &quot;imageio[ffmpeg]&quot; \
+    opencv-python-headless pyyaml scipy msgpack msgpack-numpy httpx
+uv pip install -p .venv --no-deps -e LIBERO &lt;gap&gt;/gap-core &lt;gap&gt;
+</code></pre>
+<p>LIBERO 第一次被 import 时会在终端里问路径，worker 回答不了；先写好 <code>~/.libero/config.yaml</code>：</p>
+<pre><code class="language-yaml">benchmark_root: &lt;LIBERO&gt;/libero/libero
+bddl_files: &lt;LIBERO&gt;/libero/libero/bddl_files
+init_states: &lt;LIBERO&gt;/libero/libero/init_files
+datasets: &lt;LIBERO&gt;/datasets
+assets: &lt;LIBERO&gt;/libero/libero/assets
+</code></pre>
+<p>如果 <code>import libero.libero</code> 仍然失败，在该环境的 <code>site-packages</code> 里放一个 <code>.pth</code> 文件，写上检出目录的路径。然后在本机：</p>
+<pre><code class="language-bash">cp benchmarks/host.libero.example.toml benchmarks/host.libero.toml   # 主机和它的 Python
+python benchmarks/run.py --suite benchmarks/libero.toml --out runs/libero \
+    --host benchmarks/host.libero.toml
+cat runs/libero/results.md
+</code></pre>
+<p>LIBERO-Object 的十个任务各跑一遍完整回路，真机用初始状态 0 到 24。回路结束后，部署的策略再跑初始状态 25 到 49，这些状态任何一次构建都没见过：这就是留出集成绩。另外两个场景让基准和孪生不一样：<code>alphabet_soup_slip</code> 在真机 40% 的回合里让夹爪在搬运中松手；<code>alphabet_soup_slip_reactive</code> 也一样，但孪生什么都不扰动，回路只能从真机的失败里学。在一块 RTX 4080 SUPER、16 个 CPU 核上，每个场景约七分钟，十二个场景约 85 分钟；相机通过 EGL 渲染，由主机表里的 <code>MUJOCO_GL=egl</code> 选定。最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#把-libero-object-当作真机">README</a>。<code>stations/libero/brief.example.toml</code> 是把其中一个任务单独写成的 brief。</p>
 <h2 id="12-扩展">12. 扩展</h2>
 <p><strong>接一个 LLM 作者。</strong> 写一个类，实现 <code>viper/models.py</code> 里的两个协议，brief 里写 <code>models = "my_pkg.authors:LlmAuthor"</code>：</p>
 <pre><code class="language-python">class LlmAuthor:
