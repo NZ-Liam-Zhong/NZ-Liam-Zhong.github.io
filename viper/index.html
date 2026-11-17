@@ -239,6 +239,10 @@ open runs/demo/report/index.html
 <td>Builds again from another brief, rebuilding only what it changed</td>
 </tr>
 <tr>
+<td><code>viper resume DIR --instruction "TASK"</code></td>
+<td>Builds again for another task, in words; the survey is kept (section 5)</td>
+</tr>
+<tr>
 <td><code>viper run BRIEF --out DIR --watch</code></td>
 <td>The same under a live page with Vi (section 5); <code>demo</code> and <code>resume</code> take it too</td>
 </tr>
@@ -285,7 +289,8 @@ open runs/demo/report/index.html
 </tbody>
 </table>
 <p><code>run</code> and <code>resume</code> take <code>--rounds N</code>, the most rounds of the loop, 3 by
-default. <code>-v</code> before any command logs debug messages.</p>
+default; <code>run</code>, <code>resume</code> and <code>demo</code> take <code>--instruction</code>, the task in place of
+the brief's. <code>-v</code> before any command logs debug messages.</p>
 <p>Common patterns:</p>
 <pre><code class="language-bash"># Search in simulation up to the release, and look before going to the robot
 viper run brief.toml --out runs/x --until release
@@ -297,6 +302,9 @@ viper resume runs/x
 
 # Change a setting in the brief and rebuild only what it touches
 viper resume runs/x --brief brief.toml
+
+# Give the run another task; the robot does not survey again
+viper resume runs/x --instruction &quot;put the cube in the bowl&quot;
 
 # Take this run's policy to another scene
 viper export runs/x --to pkgs/x
@@ -374,6 +382,10 @@ requests, typed or spoken (the browser's speech, where it has one):</p>
 <td>Restarts from a brief with the setting changed; only what it touches is rebuilt</td>
 </tr>
 <tr>
+<td>"task: put the cube in the bowl", or click the task at the top</td>
+<td>Restarts with <code>--instruction</code>: the survey is kept, the task and what it changes are rebuilt</td>
+</tr>
+<tr>
 <td>"why did it fail"</td>
 <td>The diagnosis of every failed round</td>
 </tr>
@@ -383,49 +395,22 @@ requests, typed or spoken (the browser's speech, where it has one):</p>
 </tr>
 </tbody>
 </table>
+<p><strong>Changing the task.</strong> Click the task at the top of the page, or its pencil,
+type the new one and press <em>Run this task</em>; or tell Vi "task: ...". The run
+stops at its next checkpoint and resumes with the new instruction, as
+<code>viper resume DIR --instruction "..."</code> does from a terminal. The survey never
+reads the instruction, so the robot does not measure again. The task is
+written again, the release and its recoveries are searched again for it,
+and the robot runs again only if they deploy a different graph. A task the
+station cannot do stops at the gate that says why: on the fake station,
+"put the cube in the bowl" fails the task's gate (<code>the goal names objects
+the twin lacks: ['bowl']</code>), and "put the plate on the cube" fails the
+release's referee self-test.</p>
 <h3 id="where-the-page-meets-the-run">Where the page meets the run</h3>
 <p>The page and the run share nothing but files under <code>DIR/live/</code>, so a run
 goes the same with or without a page, and a page can open on any run
 directory, running or finished:</p>
-<pre class="mermaid">flowchart LR
-  subgraph browser[&quot;The browser&quot;]
-    page[&quot;the page&lt;br/&gt;targets, search, episodes, details&quot;]
-    views[&quot;Simulation and Robot camera&quot;]
-    chat[&quot;Vi: chat, voice, suggestions&quot;]
-  end
-  subgraph watch[&quot;viper watch on 127.0.0.1:8765&quot;]
-    state[&quot;state.py&lt;br/&gt;the run directory as JSON&quot;]
-    vi[&quot;assistant.py&lt;br/&gt;Vi: narrates, takes requests&quot;]
-    runner[&quot;server.py&lt;br/&gt;starts, resumes, restarts the run&quot;]
-  end
-  subgraph dir[&quot;DIR/live/&quot;]
-    log[(&quot;log.jsonl&lt;br/&gt;every log record and event&quot;)]
-    now[(&quot;now.json&lt;br/&gt;where the run is&quot;)]
-    control[(&quot;control.json&lt;br/&gt;run, pause or stop&quot;)]
-    feeds[(&quot;feeds/&lt;br/&gt;the latest frame of each view&quot;)]
-  end
-  subgraph run[&quot;The run: viper run, resume or demo&quot;]
-    build[&quot;build.py&lt;br/&gt;before every round and target&quot;]
-    search[&quot;engine/search.py&lt;br/&gt;before every search round&quot;]
-    cp{{&quot;live.checkpoint&quot;}}
-    station[&quot;the station&lt;br/&gt;live.frame, while watched&quot;]
-  end
-  page --&gt;|&quot;GET /api/state, every second&quot;| state
-  views --&gt;|&quot;GET /feed/name, held until a new frame&quot;| feeds
-  chat --&gt;|&quot;POST /api/say&quot;| vi
-  vi --&gt;|&quot;pause, go on, stop&quot;| control
-  vi --&gt;|&quot;start, until, settings&quot;| runner
-  runner --&gt;|&quot;spawns&quot;| run
-  build --&gt; cp
-  search --&gt; cp
-  cp --&gt;|reads| control
-  cp --&gt;|writes| now
-  run --&gt;|logging| log
-  station --&gt; feeds
-  log --&gt; vi
-  log --&gt; state
-  now --&gt; state
-</pre>
+<p><img alt="The page, viper watch, the files under live/ and the run, and what saying pause does" src="assets/viper_watch.png" /></p>
 <p>A <strong>checkpoint</strong> is a call to <code>live.checkpoint</code> at three places in the run:
 before every round of the loop and before every target (<code>viper/build.py</code>),
 and before every round of the search (<code>viper/engine/search.py</code>). It is where
@@ -443,8 +428,8 @@ anything you ask takes effect. Saying "pause" goes like this:</p>
    line. "stop" writes <code>{"want": "stop"}</code>: the run raises <code>Halted</code>, keeps
    every target it built, and exits with status 3; "go on" then resumes it
    with <code>viper resume</code>. A request that changes settings ("10 real episodes")
-   stops the run the same way and restarts it from a brief with the setting
-   changed, so only what the setting touches is rebuilt.</li>
+   or the task stops the run the same way and restarts it with the change,
+   so only what the change touches is rebuilt.</li>
 </ol>
 <p>A paused or stopped run says where in <code>live/now.json</code>. The run is a child of
 the page in its own session and writes its log to <code>DIR/live/run.log</code>; Ctrl-C
@@ -783,21 +768,7 @@ was never tried in that situation, or both. Each cause is fixed in a different
 stage, and starting over is slow and learns nothing. The diagnosis
 (<code>viper/stages/diagnose.py</code>) asks a few questions in turn and sends each
 failure where it can be fixed.</p>
-<pre class="mermaid">flowchart TD
-  f[&quot;failed episodes on the robot&quot;] --&gt; q1{&quot;Is a measured quantity's median&lt;br/&gt;outside the twin's range?&quot;}
-  q1 --&gt;|yes| tf[&quot;twin_fixes&quot;]
-  q1 --&gt;|no| rp[&quot;replay up to 8 failed episodes in the twin&lt;br/&gt;from their start states, with the deployed graph&quot;]
-  rp --&gt; q2{&quot;Does the twin fail too?&quot;}
-  q2 --&gt;|yes| rg[&quot;regressions&quot;]
-  q2 --&gt;|no| un[&quot;unexplained failures&quot;]
-  un --&gt; q3{&quot;Did the robot say where it stopped?&quot;}
-  q3 --&gt;|yes| rs[&quot;recovery_seeds&quot;]
-  un --&gt; q4{&quot;Can the robot measure something it has not?&quot;}
-  q4 --&gt;|yes| sr[&quot;survey_requests&quot;]
-  q3 --&gt;|no| q5{&quot;No route at all?&quot;}
-  q4 --&gt;|no| q5
-  q5 --&gt;|yes| stop([&quot;stop, and say why&quot;])
-</pre>
+<p><img alt="The diagnosis asks four questions in turn and routes each failure to twin_fixes, regressions, recovery_seeds or survey_requests" src="assets/viper_diagnose.png" /></p>
 <h3 id="twin_fixes-the-twin-has-a-number-wrong">twin_fixes: the twin has a number wrong</h3>
 <p><strong>When.</strong> The robot records what it measures on every episode
 (<code>observations</code>): the cube's size as its camera reads it, the depth noise, the
@@ -932,7 +903,7 @@ python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
 <p>The eight scenarios run one after another in about 50 minutes; the latest
-results are in the <a href="https://github.com/runtime-si/VIPER_Temp/blob/feat/stations/README.md#benchmarks">README</a>.</p>
+results are in the <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.md#benchmarks">README</a>.</p>
 <h2 id="12-extending-viper">12. Extending VIPER</h2>
 <p><strong>A language-model author.</strong> A class with the two protocols of
 <code>viper/models.py</code>, named in the brief as

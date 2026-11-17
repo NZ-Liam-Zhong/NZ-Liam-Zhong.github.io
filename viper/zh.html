@@ -218,6 +218,10 @@ open runs/demo/report/index.html
 <td>换一份 brief 再跑，只重建受影响的目标</td>
 </tr>
 <tr>
+<td><code>viper resume DIR --instruction "任务"</code></td>
+<td>换一个任务再跑，survey 保留（第 5 节）</td>
+</tr>
+<tr>
 <td><code>viper run BRIEF --out DIR --watch</code></td>
 <td>同上，但在实时页面下运行，有助手 Vi（见第 5 节）；<code>demo</code>、<code>resume</code> 也可以加</td>
 </tr>
@@ -263,7 +267,7 @@ open runs/demo/report/index.html
 </tr>
 </tbody>
 </table>
-<p><code>run</code> 和 <code>resume</code> 都有 <code>--rounds N</code>（闭环最多几轮，默认 3）。任何命令加 <code>-v</code> 会输出调试日志。</p>
+<p><code>run</code> 和 <code>resume</code> 都有 <code>--rounds N</code>（闭环最多几轮，默认 3）；<code>run</code>、<code>resume</code> 和 <code>demo</code> 都有 <code>--instruction</code>，用它代替 brief 里的任务。任何命令加 <code>-v</code> 会输出调试日志。</p>
 <p>几种常见用法：</p>
 <pre><code class="language-bash"># 先只在仿真里搜到 release，看看再说
 viper run brief.toml --out runs/x --until release
@@ -290,7 +294,7 @@ viper resume runs/x --watch                   # 同上，从停下的地方接�
 viper watch runs/x                            # 打开任意运行目录的页面，在跑没跑都行
 viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器人的相机
 </code></pre>
-<p><img alt="实时页面：仿真和机器人相机、闭环进度，以及 Vi" src="assets/watch.png" /></p>
+<p><img alt="实时页面：仿真和机器人相机、闭环进度，以及 Vi" src="assets/watch.zh-CN.png" /></p>
 <p>页面实时显示：</p>
 <ul>
 <li><strong>仿真</strong>：孪生正在演练，当前这一批实例每个一格，标出成功或失败；</li>
@@ -338,6 +342,10 @@ viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器�
 <td>用改过设置的 brief 重启，只重建受影响的部分</td>
 </tr>
 <tr>
+<td>「任务：把方块放进碗里」，或者点页面顶部的任务</td>
+<td>用 <code>--instruction</code> 重启：survey 保留，重建任务和它改动到的部分</td>
+</tr>
+<tr>
 <td>「为什么失败」</td>
 <td>每一轮失败的诊断</td>
 </tr>
@@ -347,54 +355,17 @@ viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # 带上机器�
 </tr>
 </tbody>
 </table>
+<p><strong>改任务。</strong> 点页面顶部的任务或旁边的铅笔，输入新任务，按「按这个任务跑」；或者对 Vi 说「任务：……」。运行在下一个检查点停下，再用新任务接着跑，和终端里的 <code>viper resume DIR --instruction "……"</code> 一样。survey 不读任务，所以机器人不会重新测量；任务重新写，release 和恢复子图为新任务重新搜索，部署的图变了才会再上真机。工位做不到的任务会停在说明原因的那道门上：在 fake 工位上，「把方块放进碗里」过不了 task 的门（<code>the goal names objects the twin lacks: ['bowl']</code>），「把盘子放到方块上」过不了 release 的裁判自检。</p>
 <p>英文的说法（"how is it going"、"pause"、"go on" 等）同样能用。</p>
 <h3 id="页面和运行在哪里接上">页面和运行在哪里接上</h3>
 <p>页面和运行之间只通过 <code>DIR/live/</code> 下的文件交流：有没有页面，运行都一样跑；页面也可以打开任何运行目录，在跑的、跑完的都行。</p>
-<pre class="mermaid">flowchart LR
-  subgraph browser[&quot;浏览器&quot;]
-    page[&quot;页面&lt;br/&gt;目标、搜索、回合、详情&quot;]
-    views[&quot;仿真和机器人相机&quot;]
-    chat[&quot;Vi：聊天、语音、建议&quot;]
-  end
-  subgraph watch[&quot;viper watch，127.0.0.1:8765&quot;]
-    state[&quot;state.py&lt;br/&gt;把运行目录读成 JSON&quot;]
-    vi[&quot;assistant.py&lt;br/&gt;Vi：播报、接受请求&quot;]
-    runner[&quot;server.py&lt;br/&gt;启动、resume、重启运行&quot;]
-  end
-  subgraph dir[&quot;DIR/live/&quot;]
-    log[(&quot;log.jsonl&lt;br/&gt;每条日志和事件&quot;)]
-    now[(&quot;now.json&lt;br/&gt;运行在哪&quot;)]
-    control[(&quot;control.json&lt;br/&gt;run、pause 或 stop&quot;)]
-    feeds[(&quot;feeds/&lt;br/&gt;每个画面的最新一帧&quot;)]
-  end
-  subgraph run[&quot;运行：viper run、resume 或 demo&quot;]
-    build[&quot;build.py&lt;br/&gt;每一轮、每个目标之前&quot;]
-    search[&quot;engine/search.py&lt;br/&gt;搜索的每一轮之前&quot;]
-    cp{{&quot;live.checkpoint&quot;}}
-    station[&quot;工位&lt;br/&gt;有人在看时 live.frame&quot;]
-  end
-  page --&gt;|&quot;GET /api/state，每秒一次&quot;| state
-  views --&gt;|&quot;GET /feed/name，有新帧才返回&quot;| feeds
-  chat --&gt;|&quot;POST /api/say&quot;| vi
-  vi --&gt;|&quot;暂停、继续、停下&quot;| control
-  vi --&gt;|&quot;开始、跑到哪、改设置&quot;| runner
-  runner --&gt;|&quot;启动&quot;| run
-  build --&gt; cp
-  search --&gt; cp
-  cp --&gt;|读| control
-  cp --&gt;|写| now
-  run --&gt;|日志| log
-  station --&gt; feeds
-  log --&gt; vi
-  log --&gt; state
-  now --&gt; state
-</pre>
+<p><img alt="页面、viper watch、live/ 下的文件和运行，以及说一句暂停之后发生什么" src="assets/viper_watch.zh-CN.png" /></p>
 <p><strong>检查点</strong>就是运行里三处对 <code>live.checkpoint</code> 的调用：闭环每一轮之前和每个目标之前（<code>viper/build.py</code>），以及搜索每一轮之前（<code>viper/engine/search.py</code>）。你提的任何要求都在这里生效。以「暂停」为例：</p>
 <ol>
 <li>Vi 往 <code>live/control.json</code> 写 <code>{"want": "pause"}</code>；页面把前面那个检查点标成“已请求”。</li>
 <li>运行到了下一个检查点就读这个文件，记一条日志 <code>paused at round 2, target release</code>，在 <code>live/now.json</code> 里写上 <code>paused</code>，然后每秒读两次文件等着。什么都不会丢：进程、搜索和模型都原样留着。</li>
 <li>页面把检查点标成“停住”，Vi 告诉你停在哪。这期间页面上什么都可以看。</li>
-<li>「继续」写 <code>{"want": "run"}</code>，运行从同一行接着跑。「停下」写 <code>{"want": "stop"}</code>：运行抛出 <code>Halted</code>，建好的目标全部保留，退出码是 3；之后说「继续」就用 <code>viper resume</code> 接着跑。改设置的请求（「真机跑 10 个回合」）也是这样先停下，再用改过设置的 brief 重启，只重建这个设置影响到的部分。</li>
+<li>「继续」写 <code>{"want": "run"}</code>，运行从同一行接着跑。「停下」写 <code>{"want": "stop"}</code>：运行抛出 <code>Halted</code>，建好的目标全部保留，退出码是 3；之后说「继续」就用 <code>viper resume</code> 接着跑。改设置（「真机跑 10 个回合」）或改任务的请求也是这样先停下，再带着改动重启，只重建改动影响到的部分。</li>
 </ol>
 <p>暂停或停下的运行会在 <code>live/now.json</code> 里写明停在哪。运行是页面的子进程，在自己的会话里，日志写在 <code>DIR/live/run.log</code>；在页面的终端按 Ctrl-C，会让运行在下一个检查点停下。运行没有连到自己的目录之前（命令行会连上），检查点什么也不做，所以直接调用各阶段的代码永远不会卡住。</p>
 <h3 id="实时画面">实时画面</h3>
@@ -678,21 +649,7 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 </table>
 <h2 id="10-真机失败之后诊断的四条路">10. 真机失败之后：诊断的四条路</h2>
 <p>真机失败，说明下面两种情况至少有一种：要么 twin 和机器人不一样，要么策略在某个情况下没练到。不同的原因要在不同的阶段修，全部重来既慢，又学不到东西。诊断（<code>viper/stages/diagnose.py</code>）依次问几个问题，把每个失败送到能修它的地方。</p>
-<pre class="mermaid">flowchart TD
-  f[&quot;真机失败的回合&quot;] --&gt; q1{&quot;某个测量量的中位数&lt;br/&gt;落在 twin 的随机范围外？&quot;}
-  q1 --&gt;|是| tf[&quot;twin_fixes&quot;]
-  q1 --&gt;|否| rp[&quot;最多取 8 个失败回合&lt;br/&gt;从它们的起始状态在 twin 里重放部署的图&quot;]
-  rp --&gt; q2{&quot;twin 里也失败？&quot;}
-  q2 --&gt;|是| rg[&quot;regressions&quot;]
-  q2 --&gt;|否| un[&quot;未解释的失败&quot;]
-  un --&gt; q3{&quot;机器人报告了卡住时的状态？&quot;}
-  q3 --&gt;|是| rs[&quot;recovery_seeds&quot;]
-  un --&gt; q4{&quot;机器人还有没测过的量？&quot;}
-  q4 --&gt;|是| sr[&quot;survey_requests&quot;]
-  q3 --&gt;|否| q5{&quot;四条路都没走？&quot;}
-  q4 --&gt;|否| q5
-  q5 --&gt;|是| stop([&quot;停下，并写明原因&quot;])
-</pre>
+<p><img alt="诊断依次问四个问题，把每个失败送到 twin_fixes、regressions、recovery_seeds 或 survey_requests" src="assets/viper_diagnose.zh-CN.png" /></p>
 <h3 id="twin_fixestwin-的数值错了">twin_fixes：twin 的数值错了</h3>
 <p><strong>条件。</strong> 机器人每个回合都会记录它测到的量（<code>observations</code>），比如相机读出的方块尺寸、深度噪声、工具点偏差。twin 对每个量都有一个随机化范围（<code>twin/&lt;key&gt;/support.json</code>）。如果所有回合读数的中位数落在这个范围之外，就说明 twin 本身错了。</p>
 <p><strong>写下什么。</strong> 测量值，以及读数的离散度（<code>doubt</code>）。演示里那条：</p>
@@ -769,7 +726,7 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
-<p>八个场景依次跑，约 50 分钟；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/feat/stations/README.zh-CN.md#基准测试">README</a>。</p>
+<p>八个场景依次跑，约 50 分钟；最近一次的结果见 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.zh-CN.md#基准测试">README</a>。</p>
 <h2 id="12-扩展">12. 扩展</h2>
 <p><strong>接一个 LLM 作者。</strong> 写一个类，实现 <code>viper/models.py</code> 里的两个协议，brief 里写 <code>models = "my_pkg.authors:LlmAuthor"</code>：</p>
 <pre><code class="language-python">class LlmAuthor:
