@@ -117,9 +117,8 @@ just those.</p>
 <p>VIPER needs Python 3.11 or 3.12 and <a href="https://docs.astral.sh/uv/">uv</a>. It runs
 on the standard library alone; each simulator runs in its own Python, which
 VIPER never imports.</p>
-<pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER_Temp.git
-cd VIPER_Temp
-git checkout feat/stations          # until PR #2 merges
+<pre><code class="language-bash">git clone https://github.com/runtime-si/VIPER.git
+cd VIPER
 uv venv --python 3.11 &amp;&amp; source .venv/bin/activate
 uv pip install -e &quot;.[test]&quot;
 viper stations
@@ -127,6 +126,7 @@ viper stations
 <p><code>viper stations</code> lists the installed stations:</p>
 <pre><code class="language-text">bullet       real+sim   PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
 fake         real+sim   A toy cube-to-plate world in plain Python, for tests and the demo
+libero       real+sim   LIBERO on MuJoCo: a benchmark task stands in for the robot, its scene is the twin
 rss          real+sim   RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
 sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
 </code></pre>
@@ -159,12 +159,19 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td>SAPIEN 3 on PhysX 5</td>
 <td><code>sapien</code>, <code>pybullet_data</code>, <code>numpy</code>, GaP and a GPU with Vulkan</td>
 </tr>
+<tr>
+<td><code>libero</code></td>
+<td>LIBERO on MuJoCo, through robosuite 1.4</td>
+<td>a LIBERO checkout, <code>robosuite==1.4.1</code>, MuJoCo, GaP and EGL (section 11)</td>
+</tr>
 </tbody>
 </table>
-<p>The last three stage one task, a Panda that finds a cube by camera and puts it
-on a pad, with the same tool names, so one graph runs on any of them and a
-brief may search in one and run on another. Every robot is a stand-in for now:
-the same simulator built from the true scene.</p>
+<p><code>rss</code>, <code>bullet</code> and <code>sapien</code> stage one task, a Panda that finds a cube by
+camera and puts it on a pad, with the same tool names, so one graph runs on
+any of them and a brief may search in one and run on another. Their robots are
+stand-ins: the same simulator built from the true scene. <code>libero</code> puts a
+published benchmark in the robot's place, run from its own start states and
+judged by its own success test.</p>
 <p>To run the tests:</p>
 <pre><code class="language-bash">uv run pytest -q tests
 </code></pre>
@@ -903,6 +910,54 @@ cat runs/bench/results.md
 </code></pre>
 <p>The eight scenarios run one after another in about 50 minutes; the latest
 results are in the <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.md#benchmarks">README</a>.</p>
+<h3 id="libero-object-as-the-robot">LIBERO-Object as the robot</h3>
+<p><a href="https://github.com/Lifelong-Robot-Learning/LIBERO">LIBERO</a> gives each task
+fifty start states and a success test. The <code>libero</code> station puts a task in
+the robot's place: <code>real</code> runs the policy from the benchmark's start states,
+and LIBERO's own test judges every episode. The twin is the same task's scene
+from placements LIBERO samples afresh, so the search never sees a start state
+the robot is scored on. Neither side hands the policy a pose: it reads a
+camera's depth and the simulator's per-pixel labels, which stand in for a
+detector, and finds every object from them, then looks again from the wrist
+camera once the hand is over the object. The twin's probes let the grasp go in
+the carry, so every task also searches a recovery before the robot runs.</p>
+<p>The worker needs a Python of its own on the GPU host, with LIBERO, robosuite
+1.4.1, MuJoCo and GaP:</p>
+<pre><code class="language-bash">git clone --depth 1 https://github.com/Lifelong-Robot-Learning/LIBERO.git
+uv venv .venv -p 3.11
+uv pip install -p .venv --index-url https://download.pytorch.org/whl/cpu torch
+uv pip install -p .venv &quot;numpy&lt;2&quot; robosuite==1.4.1 mujoco==3.1.6 bddl==1.0.1 \
+    easydict gym==0.25.2 future cloudpickle matplotlib &quot;imageio[ffmpeg]&quot; \
+    opencv-python-headless pyyaml scipy msgpack msgpack-numpy httpx
+uv pip install -p .venv --no-deps -e LIBERO &lt;gap&gt;/gap-core &lt;gap&gt;
+</code></pre>
+<p>LIBERO asks for its paths on the terminal the first time it is imported, which
+a worker cannot answer; write <code>~/.libero/config.yaml</code> first:</p>
+<pre><code class="language-yaml">benchmark_root: &lt;LIBERO&gt;/libero/libero
+bddl_files: &lt;LIBERO&gt;/libero/libero/bddl_files
+init_states: &lt;LIBERO&gt;/libero/libero/init_files
+datasets: &lt;LIBERO&gt;/datasets
+assets: &lt;LIBERO&gt;/libero/libero/assets
+</code></pre>
+<p>If <code>import libero.libero</code> still fails, put the checkout's path in a <code>.pth</code>
+file in the environment's <code>site-packages</code>. Then, on this machine:</p>
+<pre><code class="language-bash">cp benchmarks/host.libero.example.toml benchmarks/host.libero.toml   # the host and its Python
+python benchmarks/run.py --suite benchmarks/libero.toml --out runs/libero \
+    --host benchmarks/host.libero.toml
+cat runs/libero/results.md
+</code></pre>
+<p>Each of the ten LIBERO-Object tasks runs the loop with the robot on start
+states 0 to 24. When the loop ends, the deployed policy runs start states 25
+to 49, which no build saw: the held-out count. Two more scenarios make the
+benchmark differ from the twin: <code>alphabet_soup_slip</code> lets the grasp go in the
+carry in 40% of the robot's episodes, and <code>alphabet_soup_slip_reactive</code> does
+the same with a twin that disturbs nothing, so only the robot's failures can
+teach the loop. One scenario takes about seven minutes on one RTX 4080 SUPER
+with 16 CPU cores, the twelve about 85; the cameras render through EGL, which
+<code>MUJOCO_GL=egl</code> in the host table selects. The latest numbers are in the
+<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.md#libero-object-as-the-robot">README</a>.
+<code>stations/libero/brief.example.toml</code> is one of the tasks as a brief of its
+own.</p>
 <h2 id="12-extending-viper">12. Extending VIPER</h2>
 <p><strong>A language-model author.</strong> A class with the two protocols of
 <code>viper/models.py</code>, named in the brief as
