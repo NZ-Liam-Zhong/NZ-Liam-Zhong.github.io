@@ -84,7 +84,7 @@ graph, the same one in simulation and on the robot.</p>
 <tr>
 <td><code>twin</code></td>
 <td>Builds a family of randomised scenes from the brief, the survey and every fix</td>
-<td>The station's twin check</td>
+<td>The simulation's twin check, and the reconstruction gate</td>
 </tr>
 <tr>
 <td><code>task</code></td>
@@ -113,6 +113,302 @@ needs: the same key skips the build, a new one rebuilds it and everything
 downstream. The diagnosis does one thing, append an entry under <code>inputs/</code>,
 which makes the targets that need that input stale; the next round rebuilds
 just those.</p>
+<h3 id="the-twins-own-loop-a-view-problem-or-a-method-problem">The twin's own loop: a view problem or a method problem</h3>
+<p>Active perception builds the twin; while the twin is not accurate enough, the
+robot perceives again, before <code>task</code> or <code>release</code> start. A survey that keeps
+what it saw returns <code>views</code> (each frame with its camera's name, size,
+intrinsics <code>[fx, fy, cx, cy]</code> and pose <code>[x, y, z, qw, qx, qy, qz]</code> in OpenCV
+axes, and each object's mask, depth and the quantities it was read for) and
+<code>readings</code> (every reading of each quantity: value, doubt, camera, method). A
+simulator that can <code>look_twin</code> renders the twin through each of those cameras,
+and the twin's gate (<code>viper/stages/look.py</code>) reads every object in every view:</p>
+<table>
+<thead>
+<tr>
+<th>Reading</th>
+<th>Bar (default)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mask overlap, IoU</td>
+<td>≥ 0.6</td>
+</tr>
+<tr>
+<td>Centre offset, mm at the object's depth (px without depth)</td>
+<td>≤ 10 mm (12 px)</td>
+</tr>
+<tr>
+<td>Size ratio, square root of the areas</td>
+<td>within 1.15x either way</td>
+</tr>
+<tr>
+<td>Depth, the twin's median less the camera's</td>
+<td>≤ 10 mm</td>
+</tr>
+</tbody>
+</table>
+<p>It also checks the survey: readings of one quantity from two views that
+disagree by more than <code>spread</code> (1) times their doubts summed, values outside
+the <code>ranges</code> the task declares, and the checks the robot (<code>survey_checks</code>) or
+the brief declares. Every reading goes to <code>targets/twin/&lt;key&gt;/match.json</code> and
+the look sheet <code>look.svg</code> (each camera's frame, the twin's render, both
+outlined, the readings taken through that camera, red where they disagree);
+<code>viper watch</code> shows the sheet on its <code>look</code> feed and Vi says each round.</p>
+<p>A failed gate is told apart before it is routed:</p>
+<table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>Rule</th>
+<th>Route</th>
+<th>Bound</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The comparison pins a value</td>
+<td>the simulator's render says what the value must be</td>
+<td><code>twin_fixes</code></td>
+<td>the loop's rounds</td>
+</tr>
+<tr>
+<td>Method</td>
+<td>readings of one quantity from two clear views disagree beyond their doubts; or the twin is off the same way (larger, smaller, nearer, farther, shifted alike in the world) in every clear view, two at least; or looking from more views left the object's miss at least 0.8 of what it was</td>
+<td><code>perception_fixes</code>: per quantity the robot's next method it has not tried, the one it replaces, the views, the numbers and the readings; the twin measures again from the survey's frames and the robot does not move</td>
+<td><code>method_rounds</code> (2)</td>
+</tr>
+<tr>
+<td>View</td>
+<td>anything else: the object far (fewer than 64 px across), cut by the frame, hidden or seen at a grazing angle where the view says, seen clearly in fewer than two views, or failing in some clear views and not in others</td>
+<td><code>survey_requests</code> with a <code>look</code> per object: <code>closer</code>, then <code>more</code> views, through which cameras it disagreed</td>
+<td><code>look_rounds</code> (2)</td>
+</tr>
+</tbody>
+</table>
+<p>A view is clear when none of the view rules holds for that object in it. A
+robot that cannot <code>remeasure</code> gets a look for a method problem too, as before.
+The ledger's <code>measured</code> events record which method measured each quantity the
+twin was built from, and whether from the survey or from its frames again.</p>
+<p>Seen from a few views, some of a bench stays uncertain, and the gate does not
+demand certainty. Its outcomes, in order:</p>
+<table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>When</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Route</td>
+<td>a cause above, while its input has rounds left</td>
+<td>the twin is rebuilt from what comes back</td>
+</tr>
+<tr>
+<td>Pass with ranges</td>
+<td>readings disagree while the twin, built at their median, matches every camera within the bars; or, once nothing is left to route, a value still misses</td>
+<td>each quantity becomes a range over its readings and doubts, its nominal value and the value the frames imply, clipped to the <code>ranges</code> the task declares: <code>[lo, hi]</code> for a number, the alternatives for a category (a colour). The twin is built again with <code>{"ranges": ...}</code> as its last fix, writes <code>ranges.json</code>, and its variants span them; the ledger says why (<code>ranges</code>)</td>
+</tr>
+<tr>
+<td>Fail on structure</td>
+<td>once nothing is left to route: an object the twin lacks, a value no range within its bounds can hold, or a declared check whose problem says <code>kind = "structure"</code> (a count, a support, an order)</td>
+<td>the gate fails and the loop stops, saying why</td>
+</tr>
+</tbody>
+</table>
+<p>A twin that carries ranges (from the survey, a fix, or a gate before) is
+compared at its nominal values; a miss that a value inside the range would
+close (the size or place the frame implies, within the bars) is explained by
+the range, not failed, and the look sheet says which range explained it.</p>
+<p><code>viper/core/ranges.py</code> is the representation every twin shares: <code>spanning</code>,
+<code>clip</code>, <code>union</code>, <code>contains</code>, <code>nominal</code>, and <code>variants(ranges, count, key)</code>,
+the nominal variant and then seeded draws inside every range, the same for
+the same key. A simulator draws its variants with it (<code>cube_on_pad</code> does); a
+diagnosis passes categorical ranges over, as no reading lies outside a set of
+colours.</p>
+<h3 id="the-critic-and-the-scenery-is-the-twin-complete">The critic and the scenery: is the twin complete?</h3>
+<p>The metric compare measures the task's objects; it cannot see a table that
+ends at a wall, an arm the twin left out, or a laptop on the bench. So each
+round the gate also renders the twin through each real camera, puts the
+camera's frame and the render side by side on the page (<code>look/&lt;camera&gt;</code>, the
+round on it), and asks a vision-language model what differs
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/stages/critic.py"><code>viper/stages/critic.py</code></a>).</p>
+<p>What each critic is shown, per camera (<code>Pair</code>): the real frame, the twin's
+render, the round, what the twin holds in words (objects and scenery), and
+the metric compare's numbers through that camera. What it answers
+(<code>Critique</code>), with <code>where</code> a pixel box <code>[x0, y0, x1, y1]</code> or point <code>[x, y]</code>
+in the real frame:</p>
+<pre><code class="language-json">{&quot;matches&quot;: false,
+ &quot;differences&quot;: [{&quot;thing&quot;: &quot;wall_back&quot;, &quot;kind&quot;: &quot;backdrop&quot;,
+                  &quot;where&quot;: [0, 0, 640, 260],
+                  &quot;evidence&quot;: &quot;white panels in a grey frame; the twin has none&quot;,
+                  &quot;fix&quot;: {&quot;backdrops&quot;: [{&quot;name&quot;: &quot;wall_back&quot;, &quot;side&quot;: &quot;back&quot;,
+                                         &quot;rgb&quot;: [228, 226, 218]}]}}]}
+</code></pre>
+<p><code>kind</code> is <code>missing</code>, <code>extra</code>, <code>pose</code>, <code>size</code>, <code>colour</code>, <code>texture</code> or
+<code>backdrop</code>; <code>fix</code> is a scenery layer, <code>{"remove": [names]}</code>, <code>{"measured":
+{...}}</code>, or a sentence when the picture gives no value. When several critics
+are asked (Gemini, Astra), a difference several of them name is <code>confirmed</code>;
+one only some name is downgraded and cannot block. Each difference then gets
+the first route that holds, shown on the page and in the log:</p>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>When</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embodiment</code></td>
+<td>an arm, wrist, gripper or finger: the robot's configuration is proprioception, recorded with the frame, and its geometry its model, so never a perception problem</td>
+<td><code>joints</code>: the render did not use the joints recorded with the frame, so the twin is told them (<code>twin_fixes</code>); <code>calibration</code>: it did and the arm still lands elsewhere, so the arm's known points (base, wrist camera, fingertips) projected through the camera are compared with where they appear, and past <code>calibration_px</code> (20) the camera or base is measured again from the recorded frames (<code>perception_fixes</code>, <code>calibrate</code>); <code>state</code>: the fingers' opening and the like, explained. An arm the twin lacks is added at the recorded joints. Never blocks</td>
+</tr>
+<tr>
+<td><code>metric</code></td>
+<td>a pose or size of an object the metric compare measures</td>
+<td>the metric outranks the critic and routes it itself</td>
+</tr>
+<tr>
+<td><code>dropped</code></td>
+<td>the twin draws the "missing" thing where the critic points, or the metric sees it</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><code>explained</code></td>
+<td>a size or colour of a quantity the twin carries a range of</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><code>twin_fixes</code></td>
+<td>the critic gave a value for what differs, and it applies: a colour, a thing to remove, a whole wall (a <code>size</code> or <code>pose</code> needs a place or size)</td>
+<td>the sim is updated directly: <code>{"scenery": layer, "source": "critic"}</code></td>
+</tr>
+<tr>
+<td><code>perception_fixes</code></td>
+<td>the critic gave no such value (a wall's distance, a laptop's box, a peg's colour), and the frame the survey recorded through that camera holds it inside the item's <code>where</code> box</td>
+<td>measured from the recorded RGB-D frame, the robot still: <code>{"measure": [{"thing", "group", "camera", "box", "what", "given"}]}</code>; the twin runs <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/frames.py"><code>viper/core/frames.py</code></a> on it before it builds (else a method the robot has for <code>scenery</code>)</td>
+</tr>
+<tr>
+<td><code>survey_requests</code></td>
+<td>no recorded frame holds it (outside every view, no depth there, only a point to go on, or measured once and still wrong), and the robot can look now</td>
+<td>active perception: the robot looks again, <code>{"quantities": ["scenery"], "look": {thing: {"how": "scenery", "cameras", "why"}}}</code>, and its survey returns what it read as <code>scenery</code></td>
+</tr>
+<tr>
+<td><code>needs_look</code></td>
+<td>as above, but the robot cannot look now (replay, unpowered)</td>
+<td>the views to take are listed (<code>needs_look</code> in <code>match.json</code>); the round waits for the robot</td>
+</tr>
+<tr>
+<td><code>unrouted</code></td>
+<td>nothing can settle it</td>
+<td>listed</td>
+</tr>
+</tbody>
+</table>
+<p>Only a difference in something the task touches blocks: a task object, the
+support it rests on, an obstacle in the workspace. Scenery appearance (wall
+panels, blinds, light) and the embodiment are advisory: logged, told to the
+twin when the critic gave a value, never blocking. The twin is rebuilt and
+the critics asked again, at most <code>critic_rounds</code> (2) times. The gate passes
+when every critic says every camera matches and the metrics pass; once the
+rounds are spent, a blocking difference that needs a look leaves the twin
+waiting for the robot (not failed), a blocking task object missing or extra
+fails it on structure, and the rest passes, listed.</p>
+<p><strong>A round in the gate.</strong> The gate compares the metrics and settles their
+outcome first; then, for a robot with critics, it asks them about each
+camera the twin was rendered through. Each camera's pair goes to
+<code>targets/twin/&lt;key&gt;/look/&lt;camera&gt;.critic.svg</code> and the page's <code>look/&lt;camera&gt;</code>
+feed: the real frame left, the render right, the round in the title, each
+difference outlined in its route's colour and listed below with its critics,
+route and case (<code>arm_right (missing, gemini+astra) -&gt; embodiment/joints: the
+robot itself; update the sim</code>). The log has one line per difference with why.
+The routed differences become at most one entry per input
+(<code>"source": "critic"</code>, with the round and the differences it is for). While
+the critics have rounds left (<code>critic_rounds</code>, counting the rounds that
+routed) and each input has its own (<code>look_rounds</code> for looks,
+<code>method_rounds</code> for measuring), the gate fails with outcome <code>route</code> and the
+twin's loop appends them: a look rebuilds the survey first; the twin measures
+each box in the survey's recorded frames before it builds
+(<code>scenery_measured.json</code>) and passes <code>calibrate</code> to the robot's <code>remeasure</code>;
+then it is rendered and criticised again. A route outranks a metric pass.
+With nothing left to route, a blocking difference that needs a look makes the
+outcome <code>waiting</code>: the loop stops at once without spending its rounds, and
+<code>viper run</code> exits 4. <code>match.json</code> keeps the round under <code>critic</code>: <code>round</code>,
+<code>critics</code>, <code>matches</code>, per camera the <code>critiques</code> and the routed <code>differences</code>
+(each with <code>route</code>, <code>case</code>, <code>because</code>, <code>entry</code>, <code>confirmed</code> and <code>blocking</code>),
+<code>routes</code>, <code>needs_look</code> and <code>remaining</code>. Vi says each round by route, in
+English or Chinese: "Round 2: gemini and astra put the real frames beside the
+twin's renders and found 2 differences: the sim lacked arm_right (missing,
+joints), wall_back (backdrop): added. The twin is rebuilt and rendered again."</p>
+<p>The fake bench runs every route in two rounds
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tests/unit_tests/simulation/test_fake.py"><code>tests/unit_tests/simulation/test_fake.py</code></a>).
+Its robot takes <code>scenery = true</code> (or a layer over its bench, such as a cable
+reel under the left arm) and <code>said</code>, what each critic says round by round
+before the fake critic compares the pictures itself
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/fake/scenery.py"><code>simulation/fake/scenery.py</code></a>). In round 1
+both critics call the back wall missing and give the whole wall, so it is
+told to the sim; they call the right arm missing and the left arm's pose
+wrong, both <code>embodiment</code>, drawn at the joints recorded with the frame; they
+say the table's size is wrong without a number, so it is measured in the
+recorded RGB-D frame inside its box; they point at the rim of a cable reel
+the left arm hides, which no box measures, so the robot looks again and its
+survey reads it; and one of them calls the laptop missing where the twin
+draws it, which is dropped. The twin is rebuilt, and in round 2 both say it
+matches.</p>
+<p><strong>Scenery</strong> is where those fixes land: the twin scene's <code>scenery</code>
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/scenery.py"><code>viper/core/scenery.py</code></a>), in metres in the
+twin's world frame, z up, colours as <code>rgb</code> 0-255:</p>
+<pre><code class="language-json">{&quot;support&quot;: {&quot;name&quot;: &quot;table&quot;, &quot;x_m&quot;: [-0.6, 0.6], &quot;y_m&quot;: [-0.3, 0.45], &quot;top_m&quot;: 0.0,
+             &quot;rgb&quot;: [176, 124, 82], &quot;texture&quot;: &quot;table.png&quot;, &quot;texture_m&quot;: [0.3, 0.1]},
+ &quot;backdrops&quot;: [{&quot;name&quot;: &quot;wall_back&quot;, &quot;side&quot;: &quot;back&quot;, &quot;distance_m&quot;: 0.45,
+                &quot;span_m&quot;: [-0.8, 0.8], &quot;z_m&quot;: [0.0, 0.9], &quot;rgb&quot;: [228, 226, 218]}],
+ &quot;arms&quot;: [{&quot;name&quot;: &quot;left&quot;, &quot;joints&quot;: [0.0, 1.2, -0.9, 0.0, 0.3, 0.0], &quot;gripper&quot;: 0.4,
+           &quot;base_m&quot;: [-0.33, -0.25, 0.0], &quot;rgb&quot;: [24, 24, 24]},
+          {&quot;name&quot;: &quot;right&quot;, &quot;joints&quot;: [0.0, 1.2, -0.9, 0.0, 0.3, 0.0], &quot;base_m&quot;: [0.33, -0.25, 0.0],
+           &quot;rgb&quot;: [24, 24, 24]}],
+ &quot;distractors&quot;: [{&quot;name&quot;: &quot;laptop&quot;, &quot;what&quot;: &quot;laptop&quot;, &quot;x_m&quot;: [-0.75, -0.45],
+                  &quot;y_m&quot;: [-0.35, -0.15], &quot;z_m&quot;: [0.0, 0.02], &quot;rgb&quot;: [40, 40, 44]}]}
+</code></pre>
+<p><code>backdrops</code> stand on a side (<code>back</code> +y, <code>front</code> -y, <code>right</code> +x, <code>left</code> -x)
+at <code>distance_m</code> from the origin. <code>appearance</code> holds how the task's own
+objects look (<code>{"board": {"rgb": [31, 38, 40]}}</code>), and <code>hidden</code> the names
+removed that the backend draws by itself (a goal marker). Scenery comes in
+layers, each over the last: the brief's or the backend's default, the
+survey's measured <code>scenery</code>, then each fix's <code>{"scenery": layer}</code>; a layer
+updates fields, adds names, and <code>remove</code>s names (<code>scenery.of_fixes(base,
+fixes)</code>). A new thing a layer leaves without what it needs (a wall's <code>side</code>
+and <code>distance_m</code>, a box's <code>x_m</code>, <code>y_m</code>, <code>z_m</code>) is named by
+<code>Scenery.lacks(layer)</code> and measured, never guessed.</p>
+<p><strong>Measuring a box of a recorded frame</strong>
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/frames.py"><code>viper/core/frames.py</code></a>) fills scenery from the
+photograph. <code>colour</code> is the median colour of the frame's pixels inside the
+box, its edges left out. <code>extent</code> back-projects the depth inside the box
+through the camera into the world: for a backdrop, the thinnest horizontal
+axis of the points gives its side, their median along it the distance, and
+their spread the span and height; for a box (a laptop), the points above the
+surface it stands on give its extent; for the support, the points on its top
+give its extent and height. On the Hanoi frame this measures the back wall
+0.62 m away and the laptop at x -0.42 to -0.13 m, without moving the robot.</p>
+<p>A robot gives the critics as <code>vlm(prompt, images, provider) -&gt; text</code> and
+<code>critics</code>, the providers to ask (its hub's <code>vlm.query</code>; keys stay in the
+host's env file); one without <code>vlm</code> is not critiqued. It records with each
+frame the joints of every arm (<code>view["joints"]</code>), says whether it can look
+now (<code>looks_now</code>), and may say where the arms' known points appear
+(<code>view["points"]</code>). For the frames to be measured, each view keeps its
+colour frame (<code>view["image"]</code> as PNG or JPEG, or <code>view["rgb"]</code> when the
+image is a drawing), its depth as a 16-bit PNG in millimetres
+(<code>view["depth"]</code>), and its camera's lens and pose (<code>camera["K"]</code> and
+<code>camera["T"]</code>, world from camera, x right, y down, z forward; or
+<code>intrinsics</code> and <code>pose</code>). A robot that measures scenery lists <code>scenery</code> in its survey's
+<code>can</code> (and <code>measures</code>, for methods over the recorded frames) and returns
+<code>survey["scenery"]</code>; all of it is listed in
+<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/embodiments/README.md"><code>../embodiments/README.md</code></a>. A backend draws
+<code>scenery</code> in <code>look_twin</code> and <code>see_twin</code>
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/README.md"><code>../simulation/README.md</code></a>).</p>
 <h2 id="2-install">2. Install</h2>
 <p>VIPER needs Python 3.11 or 3.12 and <a href="https://docs.astral.sh/uv/">uv</a>. It runs
 on the standard library alone; each simulator runs in its own Python, which
@@ -121,19 +417,26 @@ VIPER never imports.</p>
 cd VIPER
 uv venv --python 3.11 &amp;&amp; source .venv/bin/activate
 uv pip install -e &quot;.[test]&quot;
-viper stations
+viper parts
 </code></pre>
-<p><code>viper stations</code> lists the installed stations:</p>
-<pre><code class="language-text">bullet       real+sim   PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
-fake         real+sim   A toy cube-to-plate world in plain Python, for tests and the demo
-libero       real+sim   LIBERO on MuJoCo: a benchmark task stands in for the robot, its scene is the twin
-rss          real+sim   RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
-sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
+<p>A run is built from parts, each in the folder of its role: a real robot in
+<code>embodiments/</code>, a world standing in for one in <code>benchmarks/</code>, a physics backend
+in <code>simulation/</code>, and a task with the authors that write its graphs in
+<code>tasks/</code>. <code>viper parts</code> lists the installed ones, and what any spec gets wrong:</p>
+<pre><code class="language-text">benchmark   cube_suite     A simulation built from the true bench plays the robot: a Panda puts a cube on a pad
+benchmark   libero         A LIBERO task stands in for the robot: its own start states, judged by its own success test
+benchmark   toy            The toy world stands in for the robot, its arm off by a bias the brief misses
+simulation  fake           A toy cube-to-plate world in plain Python, for tests and the demo
+simulation  mujoco         MuJoCo through robosuite: the twin is a LIBERO task's scene, opened from its task file
+simulation  pybullet       PyBullet on the CPU: a Panda picks a cube by camera and places it on a pad
+simulation  robosimstudio  RoboSimStudio on Newton: a Panda picks a cube by camera and places it on a pad
+simulation  sapien         SAPIEN on PhysX 5: a Panda picks a cube by camera and places it on a pad
+task        pick_place     Pick a thing up and put it somewhere, from an instruction in words
 </code></pre>
 <table>
 <thead>
 <tr>
-<th>Station</th>
+<th>Simulation</th>
 <th>Engine</th>
 <th>What else it needs</th>
 </tr>
@@ -145,12 +448,12 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td>nothing; the demo and the tests</td>
 </tr>
 <tr>
-<td><code>rss</code></td>
+<td><code>robosimstudio</code></td>
 <td>RoboSimStudio on Newton (MuJoCo-Warp)</td>
 <td>a GPU and a RoboSimStudio checkout with GaP</td>
 </tr>
 <tr>
-<td><code>bullet</code></td>
+<td><code>pybullet</code></td>
 <td>PyBullet on the CPU</td>
 <td><code>pybullet</code>, <code>numpy</code> and GaP</td>
 </tr>
@@ -160,24 +463,26 @@ sapien       real+sim   SAPIEN on PhysX 5: a Panda picks a cube by camera and pl
 <td><code>sapien</code>, <code>pybullet_data</code>, <code>numpy</code>, GaP and a GPU with Vulkan</td>
 </tr>
 <tr>
-<td><code>libero</code></td>
-<td>LIBERO on MuJoCo, through robosuite 1.4</td>
+<td><code>mujoco</code></td>
+<td>LIBERO's scenes on MuJoCo, through robosuite 1.4</td>
 <td>a LIBERO checkout, <code>robosuite==1.4.1</code>, MuJoCo, GaP and EGL (section 11)</td>
 </tr>
 </tbody>
 </table>
-<p><code>rss</code>, <code>bullet</code> and <code>sapien</code> stage one task, a Panda that finds a cube by
-camera and puts it on a pad, with the same tool names, so one graph runs on
-any of them and a brief may search in one and run on another. Their robots are
-stand-ins: the same simulator built from the true scene. <code>libero</code> puts a
-published benchmark in the robot's place, run from its own start states and
-judged by its own success test.</p>
+<p><code>robosimstudio</code>, <code>pybullet</code> and <code>sapien</code> stage one world, a Panda that finds a
+cube by camera and puts it on a pad, with the same tool names, so one graph
+runs on any of them and a brief may search in one and run on another. The
+robot there is the <code>cube_suite</code> benchmark, <code>real = "cube_suite:&lt;simulation&gt;"</code>:
+the same simulator built from the true scene. The <code>libero</code> benchmark puts a
+published benchmark in the robot's place, played by <code>mujoco</code>, run from its own
+start states and judged by its own success test. No real robot ships yet;
+<code>embodiments/README.md</code> is the interface one meets.</p>
 <p>To run the tests:</p>
 <pre><code class="language-bash">uv run pytest -q tests
 </code></pre>
 <h2 id="3-the-offline-demo">3. The offline demo</h2>
-<p>The <code>fake</code> station is a toy world in plain Python with a scripted author. The
-whole loop takes under a second:</p>
+<p>The <code>fake</code> simulation and the <code>toy</code> benchmark are a toy world in plain Python,
+with a scripted author. The whole loop takes under a second:</p>
 <pre><code class="language-bash">viper demo --out runs/demo
 </code></pre>
 <p>The log, abridged:</p>
@@ -197,7 +502,7 @@ INFO building twin
 INFO twin passed its gate tcp_bias_mm=6.509
 INFO task is up to date
 INFO building release
-INFO n0005 from topology is invalid: calls sim.get_object_pose, which not every station provides
+INFO n0005 from topology is invalid: calls sim.get_object_pose, which the robot and the twin do not both provide
 INFO release passed its gate lower_bound=0.8137 n=100 rate=0.89 successes=89
 INFO real passed its gate successes=20 n=20 rate=1
 </code></pre>
@@ -277,12 +582,12 @@ open runs/demo/report/index.html
 <td>Another scene: carries over the policy alone, as a seed of the new run's search</td>
 </tr>
 <tr>
-<td><code>viper stations</code></td>
-<td>Lists the installed stations</td>
+<td><code>viper parts</code></td>
+<td>Lists the installed parts, and what each spec gets wrong</td>
 </tr>
 <tr>
-<td><code>viper hub search --index HUB --station NAME</code></td>
-<td>Lists the hub skills a station can run; <code>--all</code> adds the rest and why not</td>
+<td><code>viper hub search --index HUB --part NAME</code></td>
+<td>Lists the hub skills a simulation can run, or with <code>--real</code> a robot; <code>--all</code> adds the rest and why not</td>
 </tr>
 <tr>
 <td><code>viper hub lock GRAPH --index HUB</code></td>
@@ -328,14 +633,18 @@ viper resume runs/x --watch                   # the same, going on from where it
 viper watch runs/x                            # the page over any run directory, running or not
 viper watch runs/x --feed camera=http://robot:8080/stream.mjpg   # with the robot's camera
 </code></pre>
-<p><img alt="The live page: the simulator and the robot's camera, the loop, and Vi" src="assets/watch.png" /></p>
+<p><img alt="The live page on a real two-armed Hanoi bench: each of the robot's cameras beside the twin from the same view, and Vi" src="assets/watch.png" /></p>
 <p>The page shows, as they happen:</p>
 <ul>
 <li><strong>the simulation</strong>: the twin rehearsing, one tile per instance of the batch
   in progress, each marked success or failure;</li>
-<li><strong>the robot's camera</strong>: what the station draws, a camera's MJPEG stream
+<li><strong>the robot's camera</strong>: what the robot draws, a camera's MJPEG stream
   (<code>--feed camera=URL</code>, or <em>Add a stream URL</em> on the page), or this
   computer's webcam;</li>
+<li><strong>each of the robot's cameras beside the twin</strong>: one row per camera the
+  robot declares, the twin rendered from that camera's pose through its lens
+  on the left, <code>sim/&lt;name&gt;</code>, and what the camera sees on the right,
+  <code>camera/&lt;name&gt;</code>;</li>
 <li><strong>where the run is</strong>: the six targets, built, building, stale or failed,
   with their gate readings, the checkpoint the run is at, and the inputs the
   diagnosis has written;</li>
@@ -408,7 +717,7 @@ stops at its next checkpoint and resumes with the new instruction, as
 reads the instruction, so the robot does not measure again. The task is
 written again, the release and its recoveries are searched again for it,
 and the robot runs again only if they deploy a different graph. A task the
-station cannot do stops at the gate that says why: on the fake station,
+robot cannot do stops at the gate that says why: on the toy world,
 "put the cube in the bowl" fails the task's gate (<code>the goal names objects
 the twin lacks: ['bowl']</code>), and "put the plate on the cube" fails the
 release's referee self-test.</p>
@@ -443,19 +752,43 @@ on the page asks it to stop at the next checkpoint. Until a run is attached to
 its directory (the command line attaches it) a checkpoint does nothing, so
 code that calls the stages directly never waits.</p>
 <h3 id="the-live-views">The live views</h3>
-<p>A station draws a view with <code>live.frame("sim", data, ".svg", **meta)</code>: the
+<p>A simulation or a robot draws a view with <code>live.frame("sim", data, ".svg", **meta)</code>: the
 latest picture goes to <code>live/feeds/sim.frame</code>, what it shows to
-<code>live/feeds/sim.json</code>. Drawing costs time, so a station draws only while
+<code>live/feeds/sim.json</code>. Drawing costs time, so they draw only while
 <code>live.watched()</code> says a page has read the run in the last ten seconds; a run
 nobody watches draws nothing. The page asks for <code>/feed/sim?after=&lt;time&gt;</code>, and
 the server holds the request until a newer frame arrives, so frames show as
 soon as they are written without the page polling for pictures.</p>
-<p>The fake station draws both views. The bullet, SAPIEN and RoboSimStudio
-stations draw their renders in their workers, which run as jobs on this
-machine or over ssh; the frames a worker draws are copied back into the run's
-<code>live/feeds/</code> as they appear. The camera view takes, in the order the page prefers them: the
-station's frames, a stream URL, or this computer's webcam; when it has more
+<p>The toy world draws both views. PyBullet, SAPIEN and RoboSimStudio draw
+their renders in their workers, which run as jobs on this machine or over
+ssh; the frames a worker draws are copied back into the run's <code>live/feeds/</code> as
+they appear. The camera view takes, in the order the page prefers them: the
+robot's frames, a stream URL, or this computer's webcam; when it has more
 than one, a switch above the view picks.</p>
+<p>Each camera the robot declares (<code>[cameras.&lt;name&gt;]</code> in its embodiment or
+benchmark) has a row of its own below them: what it sees, feed
+<code>camera/&lt;name&gt;</code>, beside the twin rendered from the same pose through the same
+lens, feed <code>sim/&lt;name&gt;</code>. The publishing is VIPER's
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/core/cameras.py"><code>viper/core/cameras.py</code></a>): a robot in this process
+that can <code>see(camera)</code> is asked while it surveys and runs; a simulation that
+can <code>see_twin(twin, cameras)</code> shows each twin as it is built; and a job
+worker's bench is asked to <code>see</code> each camera after reset, after each tool call
+and when an episode ends, writing <code>live/&lt;side&gt;/&lt;name&gt;.jpg</code>, which the executor
+relays. While the reconstruction gate holds a twin against the cameras, it
+shows each view it compares as a pair: the survey's picture on
+<code>camera/&lt;name&gt;</code> and the twin's render of that view on <code>sim/&lt;name&gt;</code>, marked
+with the round; a camera seen from several views shows the last of them on
+both. A camera that cannot be read is skipped; watching never fails a run.</p>
+<p>Each camera an embodiment or a benchmark declares (<code>[cameras.&lt;name&gt;]</code>, with
+how its driver reads it, its size, lens and pose) has two feeds of its own,
+which the page shows side by side: <code>camera/&lt;name&gt;</code>, what the robot sees, and
+<code>sim/&lt;name&gt;</code>, the twin from the same pose through the same lens. Nothing
+about them is in a task's code. VIPER asks for the pictures
+(<code>viper/core/cameras.py</code> and the job runner, <code>viper/jobs/episode.py</code>): a robot
+in VIPER's process is asked to <code>see(camera)</code> a couple of times a second while
+it surveys and runs; a world in a job worker, the robot's or the twin's, is
+asked after reset, after each tool call and when an episode ends; and a twin
+just built from the survey is rendered through every camera at once.</p>
 <p>The page listens on 127.0.0.1 alone; to watch a GPU host, forward the port
 (<code>ssh -L 8765:127.0.0.1:8765 gpu</code>) and open it locally.</p>
 <p>Vi speaks English by default; <code>--lang zh</code> or <code>VIPER_LANG=zh</code> starts her in
@@ -468,15 +801,26 @@ export VIPER_CHAT_URL=https://api.openai.com/v1   # the default
 export VIPER_CHAT_KEY=...                         # or OPENAI_API_KEY
 </code></pre>
 <h2 id="6-writing-a-brief">6. Writing a brief</h2>
-<p>A brief is a TOML file; <code>stations/&lt;station&gt;/brief.example.toml</code> are examples.</p>
+<p>A brief is a TOML file; <code>benchmarks/*/brief*.toml</code> are examples.</p>
 <pre><code class="language-toml">instruction = &quot;put the cube on the pad&quot;          # required: the task
-sim = &quot;rss&quot;                                      # required: the station to search in
-real = &quot;rss&quot;                                     # required: the station to run on
-models = &quot;stations.cube_on_pad:LibraryAuthor&quot;    # the author: &quot;fake&quot; or &quot;module:Class&quot;
+task = &quot;pick_place&quot;                              # the task; its author is the one for the sim
+sim = &quot;robosimstudio&quot;                            # required: the simulation to search in
+real = &quot;cube_suite:robosimstudio&quot;                # required: the robot, an embodiment or a benchmark
+# embodiment = &quot;panda&quot;                           # optional: the robot's, else the real side's
+# models = &quot;my_pkg.authors:LlmAuthor&quot;            # optional: an author instead of the task's
 # goal = &quot;(once ...)&quot;                            # optional: the goal, else a template's
 
 [twin.cube]                 # the estimate of the scene, which the diagnosis corrects
 size_mm = 50.0
+
+[[stages]]                  # optional: the goal's stages, in order (section 10)
+name = &quot;grasp&quot;
+holds = &quot;held(cube)&quot;        # a predicate over what the robot observes
+by = [&quot;pick_sg&quot;]            # the subgraphs that work towards it
+[[stages]]
+name = &quot;place&quot;
+holds = [&quot;on(cube, pad)&quot;, &quot;clear(hand, cube)&quot;]
+by = [&quot;place_sg&quot;]
 
 [settings]
 seeds = 4
@@ -556,9 +900,44 @@ size_mm = 26.0
 <td>Disturbed runs of the release, 0 for none</td>
 </tr>
 <tr>
+<td><code>recovery_held_out</code></td>
+<td>24</td>
+<td>Disturbed runs never searched from, reported apart, 0 for none</td>
+</tr>
+<tr>
+<td><code>recovery_floor</code></td>
+<td>0.5</td>
+<td>The Wilson lower bound, on a gap's own runs, a recovery needs to join the portfolio</td>
+</tr>
+<tr>
 <td><code>real_episodes</code> / <code>real_tau</code></td>
 <td>20 / 0.8</td>
 <td>Episodes on the robot, and the rate that passes</td>
+</tr>
+<tr>
+<td><code>real_online</code></td>
+<td>0</td>
+<td>Most choices the robot's online monitor takes per episode, <code>true</code> for 2; 0 runs the graph whole (section 10)</td>
+</tr>
+<tr>
+<td><code>real_answer</code></td>
+<td><code>""</code></td>
+<td>Who that monitor asks when none of its own choices holds: <code>"file"</code> or <code>"model"</code>; nobody by default (section 10)</td>
+</tr>
+<tr>
+<td><code>real_answer_s</code></td>
+<td>30</td>
+<td>Longest it waits for an answer, in seconds</td>
+</tr>
+<tr>
+<td><code>look_rounds</code> / <code>method_rounds</code></td>
+<td>2 / 2</td>
+<td>Most times the reconstruction gate sends the robot to look again, and has the twin measure the survey's frames again with another method, in one build</td>
+</tr>
+<tr>
+<td><code>critic_rounds</code></td>
+<td>2</td>
+<td>Most rounds the reconstruction gate's critics route what they see, in one build</td>
 </tr>
 <tr>
 <td><code>seed</code></td>
@@ -601,6 +980,10 @@ size_mm = 26.0
 <td>Where job directories go on the host, whether to keep them, the longest a job may take</td>
 </tr>
 <tr>
+<td><code>retries</code></td>
+<td>Times the instances a job left without a result, as when a worker died, run again before the job fails (1)</td>
+</tr>
+<tr>
 <td><code>env</code></td>
 <td>The workers' environment variables, taken literally, with no <code>$VAR</code> expansion</td>
 </tr>
@@ -622,10 +1005,33 @@ size_mm = 26.0
 </tr>
 </tbody>
 </table>
+<p><strong><code>[[stages]]</code></strong> stage the goal when the author does not: the cube-on-pad
+library author stages its template goal as above, and the toy library's
+author stages its own. A predicate is a fact (<code>"held(cube)"</code>, among the
+state's <code>facts</code> or a key of it that is true), a list of predicates that must
+all hold, or <code>{"all"|"any": [...]}</code>, <code>{"not": p}</code>, a comparison
+<code>{"lt"|"le"|"gt"|"ge"|"eq"|"ne": [a, b]}</code> of values <code>{"get": "cube.2"}</code> read
+from the state, or <code>{"near": [a, b], "within": d}</code>
+(<code>viper/engine/staged.py</code>).</p>
 <p><strong>Other tables</strong>: <code>[randomize]</code> (<code>variants</code>, the scenes a twin draws from, 8 by
 default; <code>tcp_spread_mm</code>, how far each moves the tool point, 1.5 by default),
 <code>[disturb]</code> (what goes wrong in probe runs, by default a grasp that lets go in
-half of them; an empty table disturbs nothing) and <code>[hub]</code> (section 8).</p>
+half of them; an empty table disturbs nothing), <code>[hub]</code> (section 8) and
+<code>[look]</code>, the reconstruction gate over the robot's and simulator's own <code>look</code>
+tables:</p>
+<pre><code class="language-toml">[look]
+iou = 0.6                       # the bars every object meets in every view
+offset_mm = 10.0
+size = 1.15
+depth_mm = 10.0
+spread = 1.0                    # doubts two readings of a quantity may disagree by
+blocks = true                   # false: report the match, never fail the twin on it
+checks = [&quot;my_pkg.checks:rings_fit_the_stack&quot;]
+objects = { peg = { size = 1.3 } }
+ranges = { ring_count = [6, 6] }
+tolerance = { ring_mm = 1.0 }   # the doubt of a reading that carries none
+viewing = { near_px = 64, occluded = 0.3, grazing_deg = 60, shrink = 0.8, agree = 0.7 }
+</code></pre>
 <h2 id="7-robosimstudio-on-a-gpu-host">7. RoboSimStudio on a GPU host</h2>
 <p><strong>The GPU host</strong> needs a RoboSimStudio checkout with its virtual environment
 and GaP, such as <code>/root/viper-work/robosimstudio</code>. VIPER copies each job
@@ -643,7 +1049,7 @@ brief's <code>host = "gpu"</code> names:</p>
   ControlPersist 10m
 </code></pre>
 <p>Once <code>ssh gpu true</code> passes without a password:</p>
-<pre><code class="language-bash">viper run stations/rss/brief.example.toml --out runs/rss
+<pre><code class="language-bash">viper run benchmarks/cube_suite/brief.robosimstudio.toml --out runs/rss
 </code></pre>
 <p>The brief estimates a 50 mm cube; the stand-in robot's is 26 mm. The first
 release passes in the twin and fails on the robot, the robot's camera measures
@@ -653,7 +1059,7 @@ the cube, the twin is rebuilt, and the second release passes on the robot:
 <code>viper resume runs/rss</code> continues one that stopped.</p>
 <h2 id="8-borrowing-a-skill-from-the-hub">8. Borrowing a skill from the hub</h2>
 <p><a href="https://github.com/runtime-si/RoboSkillHub">RoboSkillHub</a> is the catalog of
-skills. <code>stations/rss/brief.hub.toml</code> lets the search borrow its
+skills. <code>benchmarks/cube_suite/brief.hub.toml</code> lets the search borrow its
 <code>verifying-grasps</code>: after the pick it lifts the cube a little, finds it with
 SAM3 in a wrist camera, and checks that it rose with the hand. The overhead
 camera is blocked by the hand by then, so the rss scene has a wrist camera.</p>
@@ -670,11 +1076,11 @@ camera is blocked by the hand by then, so the rss scene has a wrist camera.</p>
 <li><strong>The geometry bundle's environment</strong>, synced in the host checkout's
    <code>tools/geometry</code>.</li>
 </ol>
-<p>What can the station run?</p>
-<pre><code class="language-bash">viper hub search --index ../Runtime_Robo_Skill_Lab --station rss \
+<p>What can the simulation run?</p>
+<pre><code class="language-bash">viper hub search --index ../Runtime_Robo_Skill_Lab --part robosimstudio \
   --embodiment panda --serves sam3 --serves geometry --stage verify
 </code></pre>
-<pre><code class="language-text">2 of 3 bundles fit station rss
+<pre><code class="language-text">2 of 3 bundles fit robosimstudio
   verifying-grasps     skill  verify   verified,not_held,reached,missed,held,empty,unknown
   verifying-placement  skill  verify   verified,not_placed
 </code></pre>
@@ -698,7 +1104,7 @@ ROBOSIMSTUDIO_SEGMENTATION_BACKEND = &quot;sam3&quot;
 </code></pre>
 <p><code>[real_options]</code> takes the same <code>skills</code> and <code>env</code>, since the deployed graph
 runs the skill on the robot too.</p>
-<pre><code class="language-bash">viper run stations/rss/brief.hub.toml --out runs/rss-hub
+<pre><code class="language-bash">viper run benchmarks/cube_suite/brief.hub.toml --out runs/rss-hub
 </code></pre>
 <p>It takes about 19 minutes on one RTX 4080 SUPER. The first release borrows the
 verifier and fails on the robot's 26 mm cube; the twin is rebuilt from the
@@ -710,18 +1116,40 @@ on the robot with every pick verified.
 <ul>
 <li>A seed borrows a skill as a subgraph whose <code>skill</code> names it; the hub is
   never edited.</li>
-<li>The checks before a candidate runs rule out a borrowed skill the station
+<li>The checks before a candidate runs rule out a borrowed skill the simulation
   cannot run, such as one that needs a tool or a tool bundle it lacks.</li>
 <li>A checkpoint, such as π0.5 or a model fine-tuned elsewhere, is meant to be a
   GaP node that talks to a policy server, named by <code>policies</code>. The hub already
   judges which checkpoints have a server, and <code>policies</code> reaches <code>job.json</code>,
   but the rss worker does not pass it to GaP yet.</li>
 </ul>
+<h3 id="a-skill-for-a-gap">A skill for a gap</h3>
+<p>When the robot gets stuck, <code>recoveries</code> sorts its failures into gaps
+(section 10) and asks the hub, for each, what recovers from it. The ranking
+is the hub's own, its <code>roboskillhub</code> command (the index checkout's
+<code>.venv/bin/roboskillhub</code>, else the one on <code>PATH</code>):</p>
+<pre><code class="language-bash">roboskillhub search &quot;put the cube on the pad&quot; --tier camera_only -k 10 --json \
+  --embodiment panda --stage recover,execute \
+  --failure &quot;place place_sg verify object not on target, object on bench&quot;
+</code></pre>
+<p>The query is the task's instruction; the stages are <code>recover</code> and the stage
+of the subgraph blamed, from its manifest; the failure words are the stages
+the gap's runs failed at, the subgraphs blamed, and the gap's facts read as
+words (<code>!on(?object, ?target)</code> reads "object not on target"). Of the ranked
+skills, the run keeps those <code>viper hub search</code> would keep: run on a camera,
+the brief's embodiment, every tool both the simulation and the robot or a
+served bundle provide, and a subgraph that takes no input. The two best are
+offered to the gap as recoveries that borrow the skill as a subgraph,
+followed by the release's own way on from the failure; they are scored on
+the gap's runs beside the task's own chains. Whatever is used lands in
+<code>skills.lock</code>. Without a <code>[hub]</code> table, nothing is searched.
+<code>recoveries.json</code> records, per gap, what was ranked and what was kept.</p>
 <h2 id="9-what-a-run-directory-holds">9. What a run directory holds</h2>
 <pre><code class="language-text">runs/&lt;name&gt;/
   inputs/brief/             the brief
   inputs/survey_requests/   what the diagnosis asked the robot to measure
   inputs/twin_fixes/        corrections measured on the robot
+  inputs/perception_fixes/  other methods the twin measures the survey's frames with
   inputs/regressions/       real failures the twin reproduces, which every later release must pass
   inputs/recovery_seeds/    where real failures the twin does not reproduce got stuck
   inputs/seeds/             more policies to search from, such as an imported package's
@@ -763,8 +1191,28 @@ on the robot with every pick verified.
 <td>The deployed graph: the release with its recoveries</td>
 </tr>
 <tr>
+<td><code>targets/recoveries/&lt;key&gt;/portfolio/</code></td>
+<td>The recoveries indexed by the state they start from (section 10)</td>
+</tr>
+<tr>
+<td><code>targets/recoveries/&lt;key&gt;/recoveries.json</code></td>
+<td>The gaps, the variants tried for each, the hub's offers, and the held-out runs before and after</td>
+</tr>
+<tr>
 <td><code>targets/real/&lt;key&gt;/rollouts.json</code></td>
-<td>Every episode on the robot: success, the node blamed, the observations, start and end states</td>
+<td>Every episode on the robot: success, the node blamed, the observations, start and end states, and, run online, the monitor's decisions</td>
+</tr>
+<tr>
+<td><code>targets/real/&lt;key&gt;/deployed.json</code>, <code>online.json</code></td>
+<td>Which build, graph and portfolio the robot ran; run online, what the monitor saw and chose (section 10)</td>
+</tr>
+<tr>
+<td><code>targets/twin/&lt;key&gt;/match.json</code>, <code>look.svg</code></td>
+<td>The reconstruction gate's readings per object and camera, and its look sheet</td>
+</tr>
+<tr>
+<td><code>targets/twin/&lt;key&gt;/measured.json</code></td>
+<td>What the twin measured again from the survey's frames, when a perception fix asked</td>
 </tr>
 </tbody>
 </table>
@@ -774,7 +1222,7 @@ was never tried in that situation, or both. Each cause is fixed in a different
 stage, and starting over is slow and learns nothing. The diagnosis
 (<code>viper/stages/diagnose.py</code>) asks a few questions in turn and sends each
 failure where it can be fixed.</p>
-<p><img alt="The diagnosis asks four questions in turn and routes each failure to twin_fixes, regressions, recovery_seeds or survey_requests" src="assets/viper_diagnose.png" /></p>
+<p><img alt="The diagnosis first compares a staged goal stage by stage, then asks four questions in turn and routes each failure to twin_fixes, regressions, recovery_seeds or survey_requests" src="assets/viper_diagnose.png" /></p>
 <h3 id="twin_fixes-the-twin-has-a-number-wrong">twin_fixes: the twin has a number wrong</h3>
 <p><strong>When.</strong> The robot records what it measures on every episode
 (<code>observations</code>): the cube's size as its camera reads it, the depth noise, the
@@ -826,9 +1274,10 @@ the pad, so placing failed its check:</p>
  &quot;state&quot;: {&quot;arm&quot;: [...], &quot;cube&quot;: [0.02579, -0.09174, 0.01299, 1.55334], &quot;fingers&quot;: 0.04, &quot;grip&quot;: 0.04}}
 </code></pre>
 <p><strong>What is rebuilt.</strong> <code>recoveries</code> and <code>real</code> only; the release is kept.
-<code>recoveries</code> searches from those states, and from varied copies of them, for a
-chain that picks the cube up again and places it, and splices it onto the
-failure exit of placing. An episode that does not fail there runs the release
+<code>recoveries</code> sorts the stuck states into gaps by what was observed in them
+(below), and searches from them, and from varied copies of them, for a chain
+that picks the cube up again and places it, and splices it onto the failure
+exit of placing. An episode that does not fail there runs the release
 unchanged.</p>
 <p><strong>Example.</strong> In <code>slip_reactive</code> the twin makes nothing slip, so only the robot
 finds the slips: 12/20 on the first run, 8 stuck states become where recoveries
@@ -851,13 +1300,222 @@ node 33.2 mm the other way, and the second run does 20/20. The same failures
 were also routed as recovery seeds that round. In <code>slip_reactive</code> the same
 request measured 0, which ruled the offset out, and the recoveries fixed the
 rest.</p>
+<h3 id="stage-by-stage-s-g-k-and-execution">Stage by stage: S, G, K and execution</h3>
+<p>A staged goal (section 6) says how far each episode got. The robot, or the
+simulation, reports
+what it observed after each top-level node of the graph and at the end (a
+rollout's <code>checkpoints</code>); each episode, in the twin's gate runs and on the
+robot, is judged on them: a stage is reached at the first checkpoint, no
+earlier than its predecessor's, where its predicate holds, and the last stage
+must still hold at the end. A side that reports nothing still places a
+failed episode by the subgraph it was blamed on and the stages' <code>by</code>. The
+rollout records <code>reached</code>, the stages in order, and <code>failed_stage</code>.</p>
+<p>Before routing, the diagnosis compares each stage on the robot with the twin's
+gate runs of the deployed release: of the episodes that reached the stage
+before it, how many reached this one, robot <code>a1/n1</code> against twin <code>a2/n2</code>, by a
+one-sided two-proportion test (<code>viper.core.stats.two_prop_p</code>). Each stage the
+robot fails gets a finding (<code>viper/stages/findings.py</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>When</th>
+<th>What it does to the routes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S</strong></td>
+<td>The robot reaches the stage less often than the twin, p &lt; 0.05: the twin cannot show what the robot met there</td>
+<td>A twin fix, if a measurement explains it; else the robot is asked to survey what it can, even when the replay reproduces the failures</td>
+</tr>
+<tr>
+<td><strong>G</strong></td>
+<td>It fails alike in both, and a tunable input (<code>params.json</code>) acts on the subgraphs it fails in</td>
+<td>Its failures are replayed and become regressions, as above</td>
+</tr>
+<tr>
+<td><strong>K</strong></td>
+<td>It fails alike in both and no tunable input acts on it: a skill gap no search over inputs closes</td>
+<td>Its failures go to <code>recovery_seeds</code> from where they stopped, without a replay, and the ledger records a <code>skill_gap</code> with the hub's recovery skills the simulation can run</td>
+</tr>
+<tr>
+<td><strong>execution</strong></td>
+<td>The robot did not run episodes through: a refused command, a camera with no frame, a crashed worker (a rollout's <code>fault</code>)</td>
+<td>Nothing: they say nothing about the policy, and are left out of every count</td>
+</tr>
+</tbody>
+</table>
+<p>Every route carries the finding of the stage its episode failed at, in its
+value (<code>"stage"</code>, <code>"finding"</code>) and its reason, and the <code>stages</code> entry of
+<code>ledger.jsonl</code> holds the whole table, which the report and the live page's
+Diagnosis tab show. In the demo, grasping is an S, robot 13/20 against twin
+95/100, p &lt; 0.0001, behind the twin fix:</p>
+<pre><code class="language-text">INFO stage by stage: grasp: S, robot 13/20, twin 95/100, p=0.0000
+</code></pre>
+<h3 id="gaps-manifests-and-the-portfolio">Gaps, manifests and the portfolio</h3>
+<p>A recovery is searched for a <strong>gap</strong>: what a failed episode observed that no
+successful one did. The simulation's checkpoints are facts, <code>held(cube)</code>,
+<code>on(cube, pad)</code>, <code>clear(hand, cube)</code>, and the task's <code>roles</code> (in <code>task.json</code>)
+name what each thing is to the task, so <code>held(cube)</code> reads <code>held(?object)</code>
+and the same gap is found whichever object the task names:</p>
+<pre><code class="language-json">{&quot;roles&quot;: {&quot;cube&quot;: &quot;object&quot;, &quot;pad&quot;: &quot;target&quot;}}
+</code></pre>
+<p>At each checkpoint, a fact the run could have observed is either there or
+not (<code>!held(?object)</code>). A failed episode's gap is the first checkpoint where
+it observed something no successful episode observed at that checkpoint;
+failures with the same new facts are one gap. A failure that never differs
+from a success is <code>unexplained</code>: no recovery is searched for it. In <code>slip</code>,
+the twin's slips fall into two gaps: the cube dropped on its way to the pad,
+and the cube dropped before the pick had ended:</p>
+<pre><code class="language-text">INFO gap !on(?object, ?target)+on(?object, bench): 13 failed runs, first seen after place
+INFO gap !held(?object)+clear(hand, ?object)+on(?object, bench): 2 failed runs, first seen after pick
+</code></pre>
+<p><strong>Manifests</strong> say what each subgraph needs and does, in <code>manifests.json</code>
+beside the graph's <code>workflow.json</code>. The task's author writes them; the
+cube's:</p>
+<pre><code class="language-json">{
+  &quot;pick_sg&quot;: {&quot;needs&quot;: [&quot;!held(?object)&quot;], &quot;gives&quot;: [&quot;held(?object)&quot;],
+              &quot;clears&quot;: [&quot;on(?object, bench)&quot;, &quot;on(?object, ?target)&quot;], &quot;stage&quot;: &quot;execute&quot;},
+  &quot;place_sg&quot;: {&quot;needs&quot;: [&quot;held(?object)&quot;], &quot;gives&quot;: [&quot;on(?object, ?target)&quot;],
+               &quot;clears&quot;: [&quot;held(?object)&quot;], &quot;stage&quot;: &quot;execute&quot;}
+}
+</code></pre>
+<p>A subgraph with no manifest needs its inputs known and gives its outputs.
+From the gap's state, a search over the manifests finds the shortest chains,
+up to <code>depth</code> subgraphs, that undo the gap's facts, and the nodes further on
+in the graph the chain can hand back to: a node whose manifest the chain's
+result satisfies and from which the goal is still reached. A chain that would
+hand back to the node that failed, or to one that leads back to it, takes
+copies of the nodes up to the end instead, so a recovery never loops. For the
+dropped cube, the plan is <code>pick_sg</code>; it would hand back to <code>place</code>, which
+failed, so the chain is <code>pick_sg &gt; place_sg</code>, both copied, and ends the task.
+With no manifests, the chains are copies of the release's tail, as before:</p>
+<pre><code class="language-text">INFO variant at place: pick_sg &gt; place_sg then done (manifest, splice): 16/16, lower 0.81
+INFO variant at place: place_sg then done (splice): 0/16, lower 0.00
+</code></pre>
+<p>With a <code>[hub]</code> table in the brief, every gap is also searched on the hub
+(section 8). The task's own chains, the hub's skills and the release's tails
+are all scored on the gap's own runs; the search starts from the best, and
+the whole graph is gated again.</p>
+<p><strong>The portfolio.</strong> Each variant that did best on a gap, with a Wilson lower
+bound above <code>recovery_floor</code>, is kept, indexed by the gap's facts: in
+<code>targets/recoveries/&lt;key&gt;/portfolio/</code>, <code>portfolio.json</code> lists each entry's
+guard (the gap's facts), where it starts (<code>at</code>), its chain, where it hands
+back (<code>back</code>), what offered it (<code>manifest</code>, <code>hub:&lt;skill&gt;</code>, <code>splice</code>, joined
+by <code>+</code> when several offered the same graph) and its numbers, and a folder per
+entry holds a graph entered at the recovery's first node. An entry's id is a
+digest of its guard, its graph and where it hands back, and the portfolio's
+version goes up when its entries change.
+<code>viper.policy.portfolio.load(...).lookup(facts)</code> finds the recoveries whose
+guards hold in a state, the best first.</p>
+<p><code>recovery_held_out</code> disturbed runs are never searched from: they run the
+release and then the deployed graph, and their numbers are reported apart
+from the probes the search saw. In <code>slip</code>, the 24 held-out runs went from 16
+to 21 (the three left are the cube dropped before the pick ended, a gap of 2
+runs, below <code>recovery_least</code>); in LIBERO's <code>alphabet_soup</code> (section 11), where
+the gap is <code>!in(?object, ?target)</code> after placing and the chain looks again,
+picks and places, from 12 to 24.</p>
+<h3 id="online-a-recovery-or-a-resume-in-the-same-episode">Online: a recovery or a resume in the same episode</h3>
+<p>All of the above learns between builds: a failed episode is diagnosed, and
+the next build does better. With <code>real_online</code> in the brief's <code>[settings]</code>
+(<code>true</code> for two choices per episode, a number for more; off by default), the
+robot also acts within the episode. It runs the deployed graph one top-level
+node at a time (<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/jobs/online.py"><code>viper/jobs/online.py</code></a>): GaP cannot
+pause a workflow, so each node is one <code>gap.execute</code> on the episode's own
+connector, given what the nodes before it output. Between two nodes a monitor
+reads the robot's facts in the task's roles, and a trigger stops the graph's
+own way on:</p>
+<ul>
+<li><strong>exit</strong>: the node ended on an exit the graph sends to a failure end, or
+  raised with nowhere to go;</li>
+<li><strong>needs</strong>: the next node's manifest needs do not hold, such as a cube that
+  fell from the hand on the way to <code>place</code>.</li>
+</ul>
+<p>The monitor then looks up the situation, the node and the facts, and takes
+the first choice that holds:</p>
+<ul>
+<li><strong>finish</strong>: the goal's facts, those that held at the end of every successful
+  gate run, hold already; on to the success end;</li>
+<li><strong>recover</strong>: a portfolio entry whose guard holds and whose chain, by the
+  manifests, ends where the goal holds, the best validated first; its graph
+  runs from its first node;</li>
+<li><strong>resume</strong>: a node of the release's nominal path from which the rest, by
+  the manifests, ends where the goal holds, the fewest left first. What the
+  nodes before the trigger output counts as unknown, so a pick that needs to
+  know where the cube is resumes at the look before it.</li>
+</ul>
+<p>The nodes that follow check the choice: a node whose needs do not hold is a
+trigger again. A choice is not taken twice in one situation, an episode takes
+at most <code>real_online</code> of them, and with none left the graph goes its own way.
+A graph that forks, or has top-level nodes other than subgraphs and ends,
+runs whole, and the episode says why (<code>online_refused</code>). Each node's GaP
+trace is kept apart and the traces are merged into the episode's one
+<code>dag_trace.json</code>, which the blame reads as before.</p>
+<p>Every trigger is a decision, kept in the episode's row of <code>rollouts.json</code>
+under <code>online</code>: where it was met, what the monitor saw, the facts, what it
+chose, what came of it, and the world state it was met in, so choices can be
+compared from that state later. <code>online.json</code> beside it counts the episodes
+that met a trigger and those of them that still succeeded, and what was seen
+and chosen most; the report shows each decision, and Vi says what the monitor
+saw and chose. Every real run, online or not, writes <code>deployed.json</code>, the
+release index: which build and graph the robot ran, and the portfolio's
+version and digest.</p>
+<p>In the cube suite's <code>slip_online</code>, which is <code>slip_reactive</code> run online, 7 of
+the first 20 episodes dropped the cube on the way to <code>place</code>; each resumed
+at <code>pick</code>, from where the cube lay, and the first release passed 20 of 20.
+Offline, the same robot passed 13 of 20, and the second release, with a
+recovery searched from the states they stopped in, 20 of 20: online saves
+the 7 episodes and the round. In LIBERO's <code>alphabet_soup_slip_online</code>
+(section 11), 10 of the first 25 episodes dropped the can in the carry, each
+resumed at the look before the pick, and the first release passed 25 of 25,
+and 25 of 25 held out, 10 of those resumed as well; offline, 15 of the first
+25 passed. A choice does not fix what fails every time: in <code>bias</code>, run
+online, all 20 episodes resumed at <code>pick</code>, missed again in the same
+situation and ended at the failure end, and the survey the diagnosis asks
+for between builds is what passes 20 of 20. Where the release already holds
+a recovery for a slip, as in <code>slip</code>, its graph catches the slip and nothing
+triggers.</p>
+<p>The monitor's own choices read only the facts and the manifests. Three more
+hooks let a run do what they cannot, each the same for every task:</p>
+<ul>
+<li><strong>What only the robot sees.</strong> A bench (or a robot's worker) with
+  <code>anomalies()</code> returns, after each node, <code>[{"name", "detail", "soft"}]</code>: a
+  slipping grip, a move that settled a few millimetres short. One that is not
+  <code>soft</code> is a trigger, <code>anomaly</code>, even after a good exit; a soft one is only
+  kept in the checkpoint. Which readings are anomalies is the robot's or the
+  task's, never VIPER's.</li>
+<li><strong>An answer.</strong> With <code>real_answer</code>, when none of the monitor's choices
+  holds, it asks: <code>"file"</code> writes <code>online/asks/NNN_request.json</code> in the job
+  and reads <code>NNN_reply.json</code> beside it, waiting at most <code>real_answer_s</code>;
+  <code>"model"</code> asks an OpenAI-compatible chat model at <code>$VIPER_ONLINE_URL</code>
+  (model <code>$VIPER_ONLINE_MODEL</code>, key <code>$VIPER_ONLINE_KEY</code>, set in the worker's
+  <code>env</code>), told the task's <code>online_brief</code> from <code>goal.json</code> when it has one.
+  The reply is a local change, never code: set a tunable input inside its
+  <code>params.json</code> range, insert top-level steps whose manifest needs hold one
+  after another, resume at a node, or stop. It is checked before anything
+  runs and refused, with its reasons, when it does not hold; inputs it set go
+  back when the node it was asked at fails again.</li>
+<li><strong>What waits for the robot.</strong> An input <code>params.json</code> marks
+  <code>"guarded": "&lt;check&gt;"</code> (with the <code>"default"</code> at which it waits for none) is
+  one a twin cannot show the risk of: no search, offline or online, moves it,
+  and a graph that holds it off its default is not deployed unless the
+  robot's <code>checks_passed()</code> names the check. A robot with <code>preflight(graph)</code>
+  is asked before the first episode, and a refusal keeps the graph off it.
+  Either way the real build fails with <code>not deployed:</code> and why.</li>
+</ul>
+<p>A failed real episode run online is a recovery seed from the state its first
+trigger was met in, not from where it ended, with what the monitor saw and
+tried there, so the next recoveries start where the release first went wrong.</p>
 <h3 id="when-the-loop-stops">When the loop stops</h3>
 <p>The loop stops, recording why in a <code>stopped</code> entry of <code>ledger.jsonl</code> (which
 <code>viper show</code> also shows; <code>viper status</code> shows the last gate that failed), when:</p>
 <ul>
+<li>every failed episode was an execution fault: the robot needs fixing, not
+  the policy;</li>
 <li>the twin reproduces none of the failures, none reported where it stopped,
-  and the robot has nothing left to measure: the robot differs from the twin
-  in something nothing measures; or</li>
+  no stage is a skill gap, and the robot has nothing left to measure: the
+  robot differs from the twin in something nothing measures; or</li>
 <li>every failure has been routed before, and the round has nothing new.</li>
 </ul>
 <p><strong>Example.</strong> <code>bias_blind</code> lands 35 mm off like <code>bias</code>, on a robot that cannot
@@ -902,24 +1560,27 @@ offset and miss again, and after three rounds the loop stops with
 </tbody>
 </table>
 <h2 id="11-the-benchmark-suite">11. The benchmark suite</h2>
-<p><code>benchmarks/suite.toml</code> holds one brief per gap between the twin and the
+<p><code>benchmarks/suites/cube_suite.toml</code> holds one brief per gap between the twin and the
 robot, each beside a twin of it with one capability turned off.</p>
 <pre><code class="language-bash">cp benchmarks/host.example.toml benchmarks/host.toml    # name your host
 python benchmarks/run.py --out runs/bench --host benchmarks/host.toml
 cat runs/bench/results.md
 </code></pre>
-<p>The eight scenarios run one after another in about 50 minutes; the latest
+<p>The nine scenarios run one after another in about an hour; the latest
 results are in the <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.md#benchmarks">README</a>.</p>
 <h3 id="libero-object-as-the-robot">LIBERO-Object as the robot</h3>
 <p><a href="https://github.com/Lifelong-Robot-Learning/LIBERO">LIBERO</a> gives each task
-fifty start states and a success test. The <code>libero</code> station puts a task in
+fifty start states and a success test. The <code>libero</code> benchmark puts a task in
 the robot's place: <code>real</code> runs the policy from the benchmark's start states,
 and LIBERO's own test judges every episode. The twin is the same task's scene
 from placements LIBERO samples afresh, so the search never sees a start state
 the robot is scored on. Neither side hands the policy a pose: it reads a
 camera's depth and the simulator's per-pixel labels, which stand in for a
 detector, and finds every object from them, then looks again from the wrist
-camera once the hand is over the object. The twin's probes let the grasp go in
+camera once the hand is over the object. Those labels are LIBERO's
+ground-truth segmentation, and the twin is opened from the task's own BDDL
+file, not rebuilt from what the robot's cameras see; a mode that perceives
+from RGB alone and reconstructs the twin is in progress. The twin's probes let the grasp go in
 the carry, so every task also searches a recovery before the robot runs.</p>
 <p>The worker needs a Python of its own on the GPU host, with LIBERO, robosuite
 1.4.1, MuJoCo and GaP:</p>
@@ -942,22 +1603,67 @@ assets: &lt;LIBERO&gt;/libero/libero/assets
 <p>If <code>import libero.libero</code> still fails, put the checkout's path in a <code>.pth</code>
 file in the environment's <code>site-packages</code>. Then, on this machine:</p>
 <pre><code class="language-bash">cp benchmarks/host.libero.example.toml benchmarks/host.libero.toml   # the host and its Python
-python benchmarks/run.py --suite benchmarks/libero.toml --out runs/libero \
+python benchmarks/run.py --suite benchmarks/suites/libero.toml --out runs/libero \
     --host benchmarks/host.libero.toml
 cat runs/libero/results.md
 </code></pre>
 <p>Each of the ten LIBERO-Object tasks runs the loop with the robot on start
 states 0 to 24. When the loop ends, the deployed policy runs start states 25
-to 49, which no build saw: the held-out count. Two more scenarios make the
+to 49, which no build saw: the held-out count. Three more scenarios make the
 benchmark differ from the twin: <code>alphabet_soup_slip</code> lets the grasp go in the
-carry in 40% of the robot's episodes, and <code>alphabet_soup_slip_reactive</code> does
+carry in 40% of the robot's episodes, <code>alphabet_soup_slip_reactive</code> does
 the same with a twin that disturbs nothing, so only the robot's failures can
-teach the loop. One scenario takes about seven minutes on one RTX 4080 SUPER
-with 16 CPU cores, the twelve about 85; the cameras render through EGL, which
-<code>MUJOCO_GL=egl</code> in the host table selects. The latest numbers are in the
+teach the loop, and <code>alphabet_soup_slip_online</code> runs that robot online
+(section 10). One scenario takes about seven minutes on one RTX 4080 SUPER
+with 16 CPU cores, the ten tasks and the first two slips about 85; the
+cameras render through EGL, which <code>MUJOCO_GL=egl</code> in the host table selects. The latest numbers are in the
 <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/README.md#libero-object-as-the-robot">README</a>.
-<code>stations/libero/brief.example.toml</code> is one of the tasks as a brief of its
+<code>benchmarks/libero/brief.example.toml</code> is one of the tasks as a brief of its
 own.</p>
+<h3 id="libero-pros-perturbations-as-the-robot">LIBERO-PRO's perturbations as the robot</h3>
+<p><a href="https://github.com/Zxy-MLlab/LIBERO-PRO">LIBERO-PRO</a> runs LIBERO's tasks in a
+changed world. <code>benchmarks/suites/libero_pro.toml</code> takes three of its perturbations
+of LIBERO-Object, all ten tasks under each: <code>swap</code>, where the object and
+another trade the places they start in; <code>object</code>, where the object and the
+basket are other kinds of them, such as a red cream cheese, a bigger alphabet
+soup and a red basket; and <code>lan</code>, where the instruction is reworded, such as
+"grab cream cheese and put into basket". The twin stays the original task's
+scene, so only the robot is changed: the first round of real runs is the
+policy built without seeing the change, and the rounds after it are the loop's
+answer to what failed there.</p>
+<p>A swap moves only where the camera finds things. The labels name an object as
+the robot's scene does, and where none is the name asked for, the one label
+that is a kind of it stands for it, as a detector asked for the basket finds
+the red one. A reworded instruction finds its task by the words that tell it
+from the suite's other tasks, and the author reads the goal from the words. An
+object of another size is what this setup cannot follow: the twin is opened
+from the original task's file and the robot measures nothing, so the twin
+keeps the original object and the <code>twin_fixes</code> route has nothing to correct.</p>
+<p>LIBERO-PRO is a LIBERO checkout with the new objects' classes and meshes; its
+release puts each perturbed suite's BDDL and start states on Hugging Face. The
+worker keeps the Python above, and the host table puts LIBERO-PRO ahead of
+LIBERO on its path with a LIBERO config of its own:</p>
+<pre><code class="language-bash">git clone https://github.com/Zxy-MLlab/LIBERO-PRO.git
+hf download zhouxueyang/LIBERO-Pro --repo-type dataset --local-dir pro \
+    --include &quot;bddl_files/libero_object_*/*&quot; &quot;init_files/libero_object_*/*&quot;
+cp -r pro/bddl_files/* LIBERO-PRO/libero/libero/bddl_files/
+cp -r pro/init_files/* LIBERO-PRO/libero/libero/init_files/
+mkdir libero-pro-config   # its config.yaml as above, every path in LIBERO-PRO
+</code></pre>
+<pre><code class="language-bash">cp benchmarks/host.libero_pro.example.toml benchmarks/host.libero_pro.toml
+python benchmarks/run.py --suite benchmarks/suites/libero_pro.toml --out runs/libero_pro \
+    --host benchmarks/host.libero_pro.toml
+</code></pre>
+<p>This is not the pipeline's perception: both sides read the simulator's
+per-pixel labels, and the twin is opened from the task's file rather than
+rebuilt from what the robot's RGB cameras see, so its numbers are not the
+pipeline's and none are published. A run stopped after 3 of the 30 scenarios
+gave, with that ground-truth perception: <code>alphabet_soup_swap</code> 25/25 and 25/25
+held out; <code>alphabet_soup_lan</code> 25/25 and 25/25 held out; <code>alphabet_soup_object</code>
+0/25 in each of three rounds, every episode failing at <code>pick_sg/down</code>, since
+the twin still holds the original can while the robot faces
+<code>bigger_alphabet_soup_1</code>, and 0/25 held out. A smoke run of the cream cheese's
+three perturbations passed all three, 25/25 and 25/25 held out each.</p>
 <h2 id="12-extending-viper">12. Extending VIPER</h2>
 <p><strong>A language-model author.</strong> A class with the two protocols of
 <code>viper/models.py</code>, named in the brief as
@@ -975,19 +1681,57 @@ own.</p>
     def edit(self, graph, *, kind, failures):
         &quot;&quot;&quot;Edit graph, a copy of the parent, in place; False when there is no edit.&quot;&quot;&quot;
 </code></pre>
-<p><strong>A new simulator or robot.</strong> A package <code>stations/&lt;name&gt;/</code> with:</p>
+<p><strong>A new robot, benchmark, simulation or task.</strong> Each is a folder of its
+role, with a spec, <code>&lt;kind&gt;.toml</code>, that says what a policy may call; <code>viper
+parts</code> lists the installed ones and what each spec gets wrong. The folder's
+README says what goes in it:</p>
 <ul>
-<li><code>station.toml</code>: <code>name</code>, <code>description</code>, <code>provides = ["sim", "real"]</code>,
-  <code>tools</code>, the tools both sides provide, and <code>[sim] tools</code>, the simulator's
-  own ground truth.</li>
-<li><code>__init__.py</code> with <code>make_sim(spec, options)</code> and <code>make_real(spec, options)</code>.</li>
-<li><strong>The simulator</strong> implements <code>build_twin</code>, <code>check_twin</code>, <code>check_goal</code> and
-  <code>rehearse</code>, and may add <code>film</code>, <code>starts_from_states</code> and <code>vary</code>.</li>
-<li><strong>The robot</strong> implements <code>execute</code>, and may add <code>survey</code> and <code>surveys</code>.</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/embodiments/README.md"><code>embodiments/&lt;name&gt;/</code></a>, a real robot:
+  <code>embodiment.toml</code> with its arms, tools, joints, cameras and model, and a
+  driver. A robot of several arms names each arm's tools
+  <code>robot.&lt;arm&gt;.&lt;tool&gt;</code>, the same tools for every arm; an author puts a
+  one-armed graph or subgraph on an arm with <code>viper.policy.graph.on_arm</code>;
+  given the graph's folder, its scripts' <code>tool("robot.&lt;tool&gt;")</code> calls are put on the
+  arm too, in a copy of each script beside it.
+  Each <code>[cameras.&lt;name&gt;]</code> says how the driver reads a frame, its size, its
+  lens and where it sits; that is all a robot does for the live page.</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/benchmarks/README.md"><code>benchmarks/&lt;name&gt;/</code></a>, a world standing in for
+  the robot: <code>benchmark.toml</code> with the embodiment it has, the simulations
+  that play it and its cameras, and a robot that implements <code>execute</code>, and
+  may add <code>survey</code> and <code>surveys</code>.</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/README.md"><code>simulation/&lt;name&gt;/</code></a>, a physics backend:
+  <code>simulation.toml</code> with the robots its world loads and its tools, <code>[sim]
+  tools</code> being its own ground truth, and a simulator that implements
+  <code>build_twin</code>, <code>check_twin</code>, <code>check_goal</code> and <code>rehearse</code>, and may add
+  <code>film</code>, <code>starts_from_states</code>, <code>vary</code> and <code>see_twin</code>. A bench of the shared
+  job loop (<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/viper/jobs/episode.py"><code>viper/jobs/episode.py</code></a>) adds
+  <code>checkpoint()</code>, what it observes now, for a staged goal, sets <code>fault</code> when
+  an episode cannot run through, and adds <code>see(camera)</code>, which the loop shows
+  on <code>&lt;side&gt;/&lt;name&gt;</code> while a page watches.</li>
+<li><a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tasks/README.md"><code>tasks/&lt;name&gt;/</code></a>, what to do: <code>task.toml</code>, and a
+  library per world with the author that writes its goal and graphs.</li>
+<li><strong>Facts and manifests.</strong> For gaps (section 10), a checkpoint's state
+  carries <code>facts</code>, such as <code>["held(cube)", "on(cube, bench)"]</code>; the task's
+  <code>task.json</code> names each thing's <code>roles</code>; and the seed graph's
+  <code>manifests.json</code> says what each subgraph <code>needs</code>, <code>gives</code> and <code>clears</code>.
+  <a href="https://github.com/runtime-si/VIPER_Temp/blob/main/tasks/pick_place/cube/author.py"><code>tasks/pick_place/cube/author.py</code></a>
+  writes both.</li>
 </ul>
-<p>The protocols are in <code>viper/station.py</code>. <code>stations/bullet/</code> is the shortest to
-start from: it runs a worker through job directories, so only <code>job.json</code> and
-<code>results-*.jsonl</code> cross between VIPER and the simulator.</p>
+<p>A robot, an embodiment's driver or a benchmark's, gets the reconstruction
+gate from a survey that returns <code>views</code> and <code>readings</code>; one whose <code>survey</code>
+takes <code>looks</code> is told how to look again; <code>survey_checks</code> declares its
+consistency checks, each <code>survey -&gt; [{"why", "quantities", "objects",
+"route"}]</code> (<code>route</code> <code>"method"</code> when another look cannot help); <code>measures</code>,
+<code>{quantity: [method, ...]}</code> best first, and <code>remeasure(survey, frames,
+methods, out)</code>, which measures the kept frames again with those methods and
+without moving, open the method route. A simulator adds <code>look_twin(twin,
+views, out)</code>, the twin rendered through each view's camera, each object's
+mask and depth, in the views' form, and <code>pins</code> per object when the render
+fixes a value. The toy benchmark's robot and the fake simulation do all of it
+(<a href="https://github.com/runtime-si/VIPER_Temp/blob/main/simulation/fake/look.py"><code>simulation/fake/look.py</code></a>).</p>
+<p>The protocols are in <code>viper/parts.py</code>. <code>simulation/pybullet/</code> is the shortest
+simulation to start from: it runs a worker through job directories, so only
+<code>job.json</code> and <code>results-*.jsonl</code> cross between VIPER and the simulator.</p>
 <h2 id="13-troubleshooting">13. Troubleshooting</h2>
 <p><strong><code>ssh: Could not resolve hostname gpu</code>.</strong> <code>~/.ssh/config</code> has no <code>Host gpu</code>.
 Add the block in section 7, or point the brief's <code>ssh_config</code> at a file that
